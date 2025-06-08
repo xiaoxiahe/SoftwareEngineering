@@ -22,8 +22,7 @@
 		AlertDialogDescription,
 		AlertDialogFooter,
 		AlertDialogHeader,
-		AlertDialogTitle,
-		AlertDialogTrigger
+		AlertDialogTitle
 	} from '$lib/components/ui/alert-dialog';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
@@ -52,12 +51,14 @@
 		} else {
 			return '谷时';
 		}
-	}); // 加载用户请求和队列位置
-	async function loadUserStatus() {
+	}); // 加载用户请求和队列位置（显示加载状态）
+	async function loadUserStatus(showLoading = true) {
 		if (!$auth.user) return;
 
-		isLoading = true;
-		isRefreshing = true;
+		if (showLoading) {
+			isLoading = true;
+			isRefreshing = true;
+		}
 		error = '';
 
 		try {
@@ -93,9 +94,16 @@
 			$queuePosition = null;
 			error = ''; // 不显示错误信息
 		} finally {
-			isLoading = false;
-			isRefreshing = false;
+			if (showLoading) {
+				isLoading = false;
+				isRefreshing = false;
+			}
 		}
+	}
+
+	// 后台静默刷新状态（不影响UI）
+	async function refreshStatusSilently() {
+		await loadUserStatus(false);
 	}
 	// 计算充电进度（百分比）
 	function calculateProgress(request: ChargingRequestStatus): number {
@@ -152,11 +160,9 @@
 			activeRequest = null;
 			userPosition = null;
 			$chargingRequest = null;
-			$queuePosition = null;
-
-			// 延迟一小段时间后重新加载最新状态，确保后端已更新
+			$queuePosition = null; // 延迟一小段时间后重新加载最新状态，确保后端已更新
 			setTimeout(() => {
-				loadUserStatus();
+				refreshStatusSilently();
 			}, 500);
 		} catch (err) {
 			console.error('Failed to cancel request:', err);
@@ -167,13 +173,13 @@
 	onMount(() => {
 		loadUserStatus();
 
-		// 定期刷新状态 - 缩短间隔以提供更好的用户体验
-		const interval = setInterval(loadUserStatus, 5000);
+		// 定期静默刷新状态 - 不影响UI显示
+		const interval = setInterval(refreshStatusSilently, 5000);
 
 		// 监听页面可见性变化，当用户返回页面时刷新状态
 		const handleVisibilityChange = () => {
 			if (!document.hidden) {
-				loadUserStatus();
+				refreshStatusSilently();
 			}
 		};
 
@@ -244,10 +250,11 @@
 								<div>
 									<p class="text-muted-foreground text-xs">充电桩</p>
 									<p class="font-medium">{activeRequest.chargingPileId || '未分配'}</p>
-								</div>								<div>
+								</div>
+								<div>
 									<p class="text-muted-foreground text-xs">开始时间</p>
 									<p class="font-medium">
-										{activeRequest.startTime ? formatDateTime(activeRequest.startTime) : '-'}
+										{activeRequest.createdAt ? formatDateTime(activeRequest.createdAt) : '-'}
 									</p>
 								</div>
 								<div>
