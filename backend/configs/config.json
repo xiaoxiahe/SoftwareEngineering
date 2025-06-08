@@ -1,0 +1,58 @@
+{
+  "server": {
+    "port": 8080,
+    "readTimeout": 10,
+    "writeTimeout": 10,
+    "idleTimeout": 60,
+    "shutdownTimeout": 10
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "password": "postgres",
+    "dbName": "charging_system",
+    "sslMode": "disable"
+  },
+  "auth": {
+    "jwtSecret": "your-secret-key-here-change-in-production",
+    "jwtExpirationMin": 1440
+  },
+  "charging": {
+    "fastChargingPileNum": 2,
+    "trickleChargingPileNum": 1,
+    "waitingAreaSize": 6,
+    "chargingQueueLen": 2,
+    "fastChargingPower": 30.0,
+    "trickleChargingPower": 7.0,
+    "serviceFeePerUnit": 0.8,
+    "faultReschedulingStrategy": "priority",
+    "extendedSchedulingMode": "disabled"
+  },
+  "pricing": {
+    "peakPrice": 1.0,
+    "normalPrice": 0.7,
+    "valleyPrice": 0.4,
+    "serviceFee": 0.8,
+    "peakStartTime": [
+      [10, 0],
+      [18, 0]
+    ],
+    "peakEndTime": [
+      [15, 0],
+      [21, 0]
+    ],
+    "flatStartTime": [
+      [7, 0],
+      [15, 0],
+      [21, 0]
+    ],
+    "flatEndTime": [
+      [10, 0],
+      [18, 0],
+      [23, 0]
+    ],
+    "valleyStart": [[23, 0]],
+    "valleyEnd": [[7, 0]]
+  }
+}
