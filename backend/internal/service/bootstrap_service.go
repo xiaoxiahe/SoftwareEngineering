@@ -97,6 +97,19 @@ func (s *BootstrapService) syncSystemConfig() error {
 	return nil
 }
 
+// localTimeToUTC 将本地时间的小时分钟转换为UTC时间字符串
+func (s *BootstrapService) localTimeToUTC(hour, minute int) string {
+	// 使用今天的日期创建本地时间
+	now := time.Now()
+	localTime := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
+
+	// 转换为UTC时间
+	utcTime := localTime.UTC()
+
+	// 格式化为时间字符串
+	return fmt.Sprintf("%02d:%02d:00", utcTime.Hour(), utcTime.Minute())
+}
+
 // syncPricingConfig 将配置文件中的电价配置同步到数据库
 func (s *BootstrapService) syncPricingConfig() error {
 	// 检查今天是否已经有生效的电价配置
@@ -116,25 +129,26 @@ func (s *BootstrapService) syncPricingConfig() error {
 
 	// 从配置对象获取电价配置
 	// 处理高峰时段电价
-	for i := 0; i < len(s.config.Pricing.PeakStartTime); i++ {
+	for i := range len(s.config.Pricing.PeakStartTime) {
 		startHour, startMin := s.config.Pricing.PeakStartTime[i][0], s.config.Pricing.PeakStartTime[i][1]
 		endHour, endMin := s.config.Pricing.PeakEndTime[i][0], s.config.Pricing.PeakEndTime[i][1]
 
-		startTime := fmt.Sprintf("%02d:%02d:00", startHour, startMin)
-		endTime := fmt.Sprintf("%02d:%02d:00", endHour, endMin)
+		// 将本地时间转换为UTC时间
+		startTime := s.localTimeToUTC(startHour, startMin)
+		endTime := s.localTimeToUTC(endHour, endMin)
 
 		if err := s.systemRepo.CreatePricingConfig("peak", s.config.Pricing.PeakPrice, startTime, endTime, s.config.Pricing.ServiceFee); err != nil {
 			return err
 		}
 	}
-
 	// 处理平时电价
-	for i := 0; i < len(s.config.Pricing.FlatStartTime); i++ {
+	for i := range len(s.config.Pricing.FlatStartTime) {
 		startHour, startMin := s.config.Pricing.FlatStartTime[i][0], s.config.Pricing.FlatStartTime[i][1]
 		endHour, endMin := s.config.Pricing.FlatEndTime[i][0], s.config.Pricing.FlatEndTime[i][1]
 
-		startTime := fmt.Sprintf("%02d:%02d:00", startHour, startMin)
-		endTime := fmt.Sprintf("%02d:%02d:00", endHour, endMin)
+		// 将本地时间转换为UTC时间
+		startTime := s.localTimeToUTC(startHour, startMin)
+		endTime := s.localTimeToUTC(endHour, endMin)
 
 		if err := s.systemRepo.CreatePricingConfig("normal", s.config.Pricing.NormalPrice, startTime, endTime, s.config.Pricing.ServiceFee); err != nil {
 			return err
@@ -142,12 +156,13 @@ func (s *BootstrapService) syncPricingConfig() error {
 	}
 
 	// 处理谷时电价
-	for i := 0; i < len(s.config.Pricing.ValleyStart); i++ {
+	for i := range len(s.config.Pricing.ValleyStart) {
 		startHour, startMin := s.config.Pricing.ValleyStart[i][0], s.config.Pricing.ValleyStart[i][1]
 		endHour, endMin := s.config.Pricing.ValleyEnd[i][0], s.config.Pricing.ValleyEnd[i][1]
 
-		startTime := fmt.Sprintf("%02d:%02d:00", startHour, startMin)
-		endTime := fmt.Sprintf("%02d:%02d:00", endHour, endMin)
+		// 将本地时间转换为UTC时间
+		startTime := s.localTimeToUTC(startHour, startMin)
+		endTime := s.localTimeToUTC(endHour, endMin)
 
 		if err := s.systemRepo.CreatePricingConfig("valley", s.config.Pricing.ValleyPrice, startTime, endTime, s.config.Pricing.ServiceFee); err != nil {
 			return err
