@@ -23,6 +23,6 @@
   },
   "simulation": {
     "speedFactor": 1.0,
-    "logLevel": "error"
+    "logLevel": "debug"
   }
 }

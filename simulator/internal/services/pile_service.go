@@ -360,11 +360,6 @@ func (s *PileService) StopCharging(pileID, userID string, reason string) error {
 	s.logger.Info("用户 %s 在充电桩 %s 的充电被停止，原因: %s，已充电量: %.1fkWh",
 		userID, pileID, reason, stoppedVehicle.CurrentCapacity)
 
-	// 上报充电完成（停止也算完成，只是未达到预期电量）
-	if err := s.apiClient.CompleteCharging(pile, stoppedVehicle); err != nil {
-		s.logger.Error("上报充电停止失败: %v", err)
-	}
-
 	return nil
 }
 
