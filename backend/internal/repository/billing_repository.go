@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"backend/internal/model"
@@ -150,26 +151,49 @@ func (r *BillingRepository) GetBySessionID(sessionID uuid.UUID) (*model.BillingD
 }
 
 // GetUserBillingDetails 获取用户的充电详单
-func (r *BillingRepository) GetUserBillingDetails(userID uuid.UUID, page, pageSize int) ([]*model.BillingDetail, int, error) {
+func (r *BillingRepository) GetUserBillingDetails(userID uuid.UUID, startDate, endDate *time.Time, page, pageSize int) ([]*model.BillingDetail, int, error) {
+	// 构建基本查询条件
+	whereClause := "WHERE user_id = $1"
+	countArgs := []interface{}{userID}
+	queryArgs := []interface{}{userID}
+	paramCount := 1
+
+	// 添加日期过滤条件
+	if startDate != nil {
+		paramCount++
+		whereClause += fmt.Sprintf(" AND start_time >= $%d", paramCount)
+		countArgs = append(countArgs, *startDate)
+		queryArgs = append(queryArgs, *startDate)
+	}
+
+	if endDate != nil {
+		paramCount++
+		whereClause += fmt.Sprintf(" AND start_time <= $%d", paramCount)
+		countArgs = append(countArgs, *endDate)
+		queryArgs = append(queryArgs, *endDate)
+	}
+
 	// 获取总数
 	var total int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM billing_details WHERE user_id = $1", userID).Scan(&total)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM billing_details %s", whereClause)
+	err := r.db.QueryRow(countQuery, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 分页查询
 	offset := (page - 1) * pageSize
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, session_id, user_id, pile_id, charging_capacity, charging_duration,
 			   start_time, stop_time, unit_price, price_type, charging_fee, service_fee, total_fee, generated_at
 		FROM billing_details
-		WHERE user_id = $1
+		%s
 		ORDER BY generated_at DESC
-		LIMIT $2 OFFSET $3
-	`
+		LIMIT $%d OFFSET $%d
+	`, whereClause, paramCount+1, paramCount+2)
 
-	rows, err := r.db.Query(query, userID, pageSize, offset)
+	queryArgs = append(queryArgs, pageSize, offset)
+	rows, err := r.db.Query(query, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

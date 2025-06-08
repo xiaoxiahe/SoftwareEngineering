@@ -29,7 +29,7 @@ export const billingDetailColumns: ColumnDef<BillingDetail>[] = [
   {
     accessorKey: "chargingDuration",
     header: "充电时长",
-    cell: ({ row }) => formatDuration(row.getValue("chargingDuration") as number),
+    cell: ({ row }) => formatDuration(row.getValue("chargingDuration") as number, 'hours'),
   },
   {
     accessorKey: "chargingFee",

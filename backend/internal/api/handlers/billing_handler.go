@@ -39,22 +39,26 @@ func (h *BillingHandler) GetBillingDetails(w http.ResponseWriter, r *http.Reques
 	endDateStr := r.URL.Query().Get("endDate")
 	pageStr := r.URL.Query().Get("page")
 	pageSizeStr := r.URL.Query().Get("pageSize")
-
-	// 解析参数（我们暂时不使用日期参数，但仍然验证其格式）
+	// 解析日期参数
+	var startDate, endDate *time.Time
 	if startDateStr != "" {
-		_, err := time.Parse("2006-01-02", startDateStr)
+		parsedDate, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
 			http.Error(w, "开始日期格式错误", http.StatusBadRequest)
 			return
 		}
+		startDate = &parsedDate
 	}
 
 	if endDateStr != "" {
-		_, err := time.Parse("2006-01-02", endDateStr)
+		parsedDate, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
 			http.Error(w, "结束日期格式错误", http.StatusBadRequest)
 			return
 		}
+		// 设置为当天的结束时间 23:59:59
+		parsedDate = time.Date(parsedDate.Year(), parsedDate.Month(), parsedDate.Day(), 23, 59, 59, 999999999, parsedDate.Location())
+		endDate = &parsedDate
 	}
 
 	// 解析分页参数
@@ -75,9 +79,8 @@ func (h *BillingHandler) GetBillingDetails(w http.ResponseWriter, r *http.Reques
 			pageSize = 10
 		}
 	}
-
-	// 获取充电详单
-	details, total, err := h.billingService.GetUserBills(user.ID, page, pageSize)
+	// 获取充电详单，使用日期过滤
+	details, total, err := h.billingService.GetUserBills(user.ID, startDate, endDate, page, pageSize)
 	if err != nil {
 		http.Error(w, "获取充电详单失败: "+err.Error(), http.StatusInternalServerError)
 		return

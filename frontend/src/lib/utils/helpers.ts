@@ -36,12 +36,14 @@ export function formatDateTime(dateTime: string): string {
   });
 }
 
-// 格式化持续时间（小时）为小时和分钟
-export function formatDuration(duration: number): string {
-    // 假设是秒数
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    const seconds = Math.floor(duration % 60);
+// 格式化持续时间为小时、分钟和秒
+export function formatDuration(duration: number, unit: 'seconds' | 'hours' = 'seconds'): string {
+    // 根据单位转换为秒
+    const totalSeconds = unit === 'hours' ? duration * 3600 : duration;
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
     
     if (hours === 0) {
       if (minutes === 0) {
@@ -121,25 +123,4 @@ export function getPileIds(fastCount: number, slowCount: number): string[] {
   }
   
   return ids;
-}
-
-// 根据详单数据生成PDF下载内容（简化版，实际使用需要导入PDF生成库）
-export function generateBillingDetailContent(detail: BillingDetail): string {
-  return `
-充电详单
--------------------------------------------
-详单编号: ${detail.detailId}
-生成时间: ${formatDateTime(detail.generatedAt)}
-充电桩编号: ${detail.pileId}
-充电电量: ${detail.chargingCapacity.toFixed(2)} 度
-充电时长: ${formatDuration(detail.chargingDuration)}
-开始时间: ${formatDateTime(detail.startTime)}
-结束时间: ${formatDateTime(detail.endTime)}
-电价类型: ${detail.priceType === 'peak' ? '峰时' : detail.priceType === 'normal' ? '平时' : '谷时'}
-单价: ${detail.unitPrice?.toFixed(2) || getElectricityPrice(detail.priceType).toFixed(2)} 元/度
-充电费用: ${formatCurrency(detail.chargingFee)}
-服务费用: ${formatCurrency(detail.serviceFee)}
-总费用: ${formatCurrency(detail.totalFee)}
--------------------------------------------
-  `;
 }

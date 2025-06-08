@@ -2,12 +2,6 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import {
-		formatDateTime,
-		formatDuration,
-		formatCurrency,
-		generateBillingDetailContent
-	} from '$lib/utils/helpers';
-	import {
 		Card,
 		CardContent,
 		CardDescription,
@@ -19,31 +13,14 @@
 	import { Popover, PopoverContent, PopoverTrigger } from '$lib/components/ui/popover';
 	import { Calendar } from '$lib/components/ui/calendar';
 	import { Pagination } from '$lib/components/ui/pagination';
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogFooter,
-		DialogHeader,
-		DialogTitle
-	} from '$lib/components/ui/dialog';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import type { BillingDetail, BillingDetailList } from '$lib/types';
+	import type { BillingDetailList } from '$lib/types';
 	import BillingDetailTable from './billing-detail-table.svelte';
 	import { goto } from '$app/navigation';
-	import {
-		parseDate,
-		CalendarDate,
-		toZoned,
-		ZonedDateTime,
-		getLocalTimeZone,
-		now
-	} from '@internationalized/date';
+	import { CalendarDate, getLocalTimeZone, now } from '@internationalized/date';
 	let isLoading = true;
 	let error: string | null = null;
 	let billingDetails: BillingDetailList | null = null;
-	let selectedDetail: BillingDetail | null = null;
-	let showDetailDialog = false;
 
 	// 获取当前日期和一个月前的日期
 	const today = now(getLocalTimeZone());
@@ -75,15 +52,6 @@
 			error = '加载充电详单失败，请稍后再试';
 		} finally {
 			isLoading = false;
-		}
-	}
-	// 加载详单详情
-	async function loadDetailInfo(detailId: string) {
-		try {
-			selectedDetail = (await api.billing.getDetail(detailId)) as BillingDetail;
-			showDetailDialog = true;
-		} catch (err) {
-			console.error('Failed to load detail info:', err);
 		}
 	}
 
@@ -199,7 +167,7 @@
 					<p class="text-red-500">{error}</p>
 				</div>
 			{:else if billingDetails && billingDetails.details.length > 0}
-				<BillingDetailTable data={billingDetails.details} onViewDetail={loadDetailInfo} />
+				<BillingDetailTable data={billingDetails.details} />
 
 				<!-- 分页 -->
 				{#if billingDetails.total > pageSize}
@@ -228,81 +196,4 @@
 			{/if}
 		</CardContent>
 	</Card>
-
-	<!-- 详单详情对话框 -->
-	<Dialog bind:open={showDetailDialog}>
-		<DialogContent class="max-w-md">
-			<DialogHeader>
-				<DialogTitle>详单详情</DialogTitle>
-				<DialogDescription>详单编号: {selectedDetail?.detailId || ''}</DialogDescription>
-			</DialogHeader>
-
-			{#if selectedDetail}
-				<div class="grid gap-3 py-4">
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<p class="text-muted-foreground text-xs">充电桩</p>
-							<p class="font-medium">{selectedDetail.pileId}</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">充电模式</p>
-							<p class="font-medium">
-								{selectedDetail.queueNumber?.startsWith('F') ? '快充' : '慢充'}
-							</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">充电电量</p>
-							<p class="font-medium">{selectedDetail.chargingCapacity.toFixed(2)} 度</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">充电时长</p>
-							<p class="font-medium">{formatDuration(selectedDetail.chargingDuration)}</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">开始时间</p>
-							<p class="font-medium">{formatDateTime(selectedDetail.startTime)}</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">结束时间</p>
-							<p class="font-medium">{formatDateTime(selectedDetail.endTime)}</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">电价类型</p>
-							<p class="font-medium">
-								{selectedDetail.priceType === 'peak'
-									? '峰时'
-									: selectedDetail.priceType === 'normal'
-										? '平时'
-										: '谷时'}
-							</p>
-						</div>
-						<div>
-							<p class="text-muted-foreground text-xs">单价</p>
-							<p class="font-medium">{(selectedDetail.unitPrice || 0).toFixed(1)}元/度</p>
-						</div>
-					</div>
-
-					<div class="bg-muted mt-2 space-y-2 rounded-md p-3">
-						<div class="flex justify-between">
-							<span>充电费</span>
-							<span class="font-medium">{formatCurrency(selectedDetail.chargingFee)}</span>
-						</div>
-						<div class="flex justify-between">
-							<span>服务费</span>
-							<span class="font-medium">{formatCurrency(selectedDetail.serviceFee)}</span>
-						</div>
-						<hr class="border-border my-1 border-t" />
-						<div class="flex justify-between">
-							<span class="font-semibold">总费用</span>
-							<span class="font-bold">{formatCurrency(selectedDetail.totalFee)}</span>
-						</div>
-					</div>
-				</div>
-
-				<DialogFooter>
-					<Button onclick={() => (showDetailDialog = false)}>关闭</Button>
-				</DialogFooter>
-			{/if}
-		</DialogContent>
-	</Dialog>
 </div>

@@ -3,7 +3,7 @@
 	import { api } from '$lib/api';
 	import { auth } from '$lib/stores/auth';
 	import { chargingRequest, queuePosition } from '$lib/stores/auth';
-	import { formatDateTime, formatDuration } from '$lib/utils/helpers';
+	import { formatDateTime } from '$lib/utils/helpers';
 	import {
 		Card,
 		CardContent,

@@ -108,14 +108,14 @@ func (s *BillingService) GetBillByID(billID uuid.UUID) (*model.BillingDetail, er
 }
 
 // GetUserBills 获取用户账单
-func (s *BillingService) GetUserBills(userID uuid.UUID, page, pageSize int) ([]*model.BillingDetail, int, error) {
+func (s *BillingService) GetUserBills(userID uuid.UUID, startDate, endDate *time.Time, page, pageSize int) ([]*model.BillingDetail, int, error) {
 	if page <= 0 {
 		page = 1
 	}
 	if pageSize <= 0 {
 		pageSize = 10
 	}
-	return s.billingRepo.GetUserBillingDetails(userID, page, pageSize)
+	return s.billingRepo.GetUserBillingDetails(userID, startDate, endDate, page, pageSize)
 }
 
 // GetBillingStatistics 获取计费统计
