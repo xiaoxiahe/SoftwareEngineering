@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { auth } from '$lib/stores/auth';
 	import { goto, afterNavigate } from '$app/navigation';
+	import { Toaster } from '$lib/components/ui/sonner';
 
 	let { children } = $props();
 
@@ -22,3 +23,4 @@
 </script>
 
 {@render children()}
+<Toaster />

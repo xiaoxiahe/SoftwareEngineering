@@ -14,12 +14,26 @@
 	} from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Button } from '$lib/components/ui/button';
+	import {
+		AlertDialog,
+		AlertDialogAction,
+		AlertDialogCancel,
+		AlertDialogContent,
+		AlertDialogDescription,
+		AlertDialogFooter,
+		AlertDialogHeader,
+		AlertDialogTitle,
+		AlertDialogTrigger
+	} from '$lib/components/ui/alert-dialog';
+	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import type { ChargingRequestStatus, UserQueuePosition } from '$lib/types';
 	let isLoading = $state(true);
 	let error = $state('');
 	let activeRequest = $state<ChargingRequestStatus | null>(null);
 	let userPosition = $state<UserQueuePosition | null>(null);
+	let showCancelDialog = $state(false);
+	let isRefreshing = $state(false);
 
 	// 使用 $derived 来计算是否显示排队信息
 	const showQueueInfo = $derived(
@@ -39,11 +53,11 @@
 			return '谷时';
 		}
 	}); // 加载用户请求和队列位置
-
 	async function loadUserStatus() {
 		if (!$auth.user) return;
 
 		isLoading = true;
+		isRefreshing = true;
 		error = '';
 
 		try {
@@ -80,6 +94,7 @@
 			error = ''; // 不显示错误信息
 		} finally {
 			isLoading = false;
+			isRefreshing = false;
 		}
 	}
 	// 计算充电进度（百分比）
@@ -118,27 +133,56 @@
 				return 'text-gray-500';
 		}
 	}
-
+	// 显示取消确认对话框
+	function showCancelConfirmation() {
+		showCancelDialog = true;
+	}
 	// 取消充电请求
 	async function cancelRequest() {
 		if (!activeRequest) return;
 
 		try {
 			await api.charging.cancelRequest(activeRequest.requestId);
-			// 成功取消后重新加载
-			loadUserStatus();
+			// 关闭对话框
+			showCancelDialog = false;
+			// 显示成功提示
+			toast.success('充电请求已成功取消');
+
+			// 立即清空当前状态，提供即时反馈
+			activeRequest = null;
+			userPosition = null;
+			$chargingRequest = null;
+			$queuePosition = null;
+
+			// 延迟一小段时间后重新加载最新状态，确保后端已更新
+			setTimeout(() => {
+				loadUserStatus();
+			}, 500);
 		} catch (err) {
 			console.error('Failed to cancel request:', err);
 			error = '取消请求失败，请稍后再试';
+			toast.error('取消请求失败，请稍后再试');
 		}
 	}
 	onMount(() => {
 		loadUserStatus();
 
-		// 定期刷新状态
-		const interval = setInterval(loadUserStatus, 10000);
+		// 定期刷新状态 - 缩短间隔以提供更好的用户体验
+		const interval = setInterval(loadUserStatus, 5000);
 
-		return () => clearInterval(interval);
+		// 监听页面可见性变化，当用户返回页面时刷新状态
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				loadUserStatus();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	});
 
 	// 使用 $effect 来处理响应式副作用
@@ -200,11 +244,10 @@
 								<div>
 									<p class="text-muted-foreground text-xs">充电桩</p>
 									<p class="font-medium">{activeRequest.chargingPileId || '未分配'}</p>
-								</div>
-								<div>
+								</div>								<div>
 									<p class="text-muted-foreground text-xs">开始时间</p>
 									<p class="font-medium">
-										{activeRequest.createdAt ? formatDateTime(activeRequest.createdAt) : '-'}
+										{activeRequest.startTime ? formatDateTime(activeRequest.startTime) : '-'}
 									</p>
 								</div>
 								<div>
@@ -244,12 +287,14 @@
 				</CardContent>
 				<CardFooter class="flex justify-between">
 					{#if activeRequest.status === 'waiting' || activeRequest.status === 'queued' || activeRequest.status === 'charging'}
-						<Button variant="destructive" onclick={cancelRequest}>取消充电</Button>
+						<Button variant="destructive" onclick={showCancelConfirmation}>取消充电</Button>
 					{:else}
 						<Button onclick={() => goto('/dashboard/details')}>查看详单</Button>
 					{/if}
 
-					<Button variant="outline" onclick={() => loadUserStatus()}>刷新</Button>
+					<Button variant="outline" onclick={() => loadUserStatus()} disabled={isRefreshing}>
+						{isRefreshing ? '刷新中...' : '刷新'}
+					</Button>
 				</CardFooter>
 			</Card>
 
@@ -339,3 +384,36 @@
 		</Card>
 	</div>
 </div>
+
+<!-- 取消充电确认对话框 -->
+<AlertDialog bind:open={showCancelDialog}>
+	<AlertDialogContent>
+		<AlertDialogHeader>
+			<AlertDialogTitle>确认取消充电请求</AlertDialogTitle>
+			<AlertDialogDescription>
+				您确定要取消当前的充电请求吗？此操作无法撤销。
+				{#if activeRequest}
+					<div class="bg-muted mt-3 rounded-md p-3">
+						<p class="text-sm"><strong>请求编号:</strong> {activeRequest.queueNumber}</p>
+						<p class="text-sm"><strong>当前状态:</strong> {getStatusText(activeRequest.status)}</p>
+						{#if activeRequest.requestedCapacity}
+							<p class="text-sm">
+								<strong>请求充电量:</strong>
+								{activeRequest.requestedCapacity.toFixed(1)} 度
+							</p>
+						{/if}
+					</div>
+				{/if}
+			</AlertDialogDescription>
+		</AlertDialogHeader>
+		<AlertDialogFooter>
+			<AlertDialogCancel onclick={() => (showCancelDialog = false)}>保留请求</AlertDialogCancel>
+			<AlertDialogAction
+				onclick={cancelRequest}
+				class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+			>
+				确认取消
+			</AlertDialogAction>
+		</AlertDialogFooter>
+	</AlertDialogContent>
+</AlertDialog>

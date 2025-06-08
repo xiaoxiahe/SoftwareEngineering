@@ -35,7 +35,7 @@ export interface ChargingRequestStatus {
   queueNumber: string;
   chargingPileId?: string;
   waitingPosition?: number;
-  startTime?: string;
+  createdAt?: string;
   endTime?: string;
   actualCapacity?: number;
   requestedCapacity?: number;
