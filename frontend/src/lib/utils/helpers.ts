@@ -1,17 +1,4 @@
-import type { BillingDetail, ChargingPile } from '$lib/types';
-
-// 根据时间获取电价类型
-export function getPriceType(time: string): 'peak' | 'normal' | 'valley' {
-  const hour = new Date(time).getHours();
-  
-  if ((hour >= 10 && hour < 15) || (hour >= 18 && hour < 21)) {
-    return 'peak';
-  } else if ((hour >= 7 && hour < 10) || (hour >= 15 && hour < 18) || (hour >= 21 && hour < 23)) {
-    return 'normal';
-  } else {
-    return 'valley';
-  }
-}
+import type {  ChargingPile } from '$lib/types';
 
 // 获取电价
 export function getElectricityPrice(priceType: 'peak' | 'normal' | 'valley'): number {
@@ -76,51 +63,4 @@ export function getPileStatusInfo(status: ChargingPile['status']): { text: strin
     default:
       return { text: '未知', color: 'text-gray-500' };
   }
-}
-
-// 根据充电模式获取对应的功率
-export function getPowerByMode(mode: 'fast' | 'slow'): number {
-  return mode === 'fast' ? 30 : 7;
-}
-
-// 计算充电时间（小时）
-export function calculateChargingTime(capacity: number, power: number): number {
-  return capacity / power;
-}
-
-// 计算充电费用
-export function calculateChargingFee(
-  capacity: number,
-  startTime: string
-): { chargingFee: number; serviceFee: number; totalFee: number; priceType: 'peak' | 'normal' | 'valley' } {
-  const priceType = getPriceType(startTime);
-  const electricityPrice = getElectricityPrice(priceType);
-  const serviceFeeRate = 0.8;
-  
-  const chargingFee = capacity * electricityPrice;
-  const serviceFee = capacity * serviceFeeRate;
-  
-  return {
-    chargingFee,
-    serviceFee,
-    totalFee: chargingFee + serviceFee,
-    priceType
-  };
-}
-
-// 转换充电桩ID为字符串数组（如快充桩A、B，慢充桩C、D、E）
-export function getPileIds(fastCount: number, slowCount: number): string[] {
-  const ids: string[] = [];
-  
-  // 快充桩：A, B, ...
-  for (let i = 0; i < fastCount; i++) {
-    ids.push(String.fromCharCode(65 + i)); // A, B, C, ...
-  }
-  
-  // 慢充桩：从快充桩之后的字母开始
-  for (let i = 0; i < slowCount; i++) {
-    ids.push(String.fromCharCode(65 + fastCount + i));
-  }
-  
-  return ids;
 }

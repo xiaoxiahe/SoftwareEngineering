@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { auth, chargingRequest } from '$lib/stores/auth';
 	import {
@@ -23,80 +22,101 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog';
-	import {
-		calculateChargingTime,
-		getElectricityPrice,
-		calculateChargingFee
-	} from '$lib/utils/helpers';
+	import { getElectricityPrice } from '$lib/utils/helpers';
 
 	// 表单状态
-	let chargingMode: 'fast' | 'slow' = 'fast';
-	let requestedCapacity = 20;
-	let isLoading = false;
-	let isModifying = false;
-	let error = '';
-	let success = '';
+	let chargingMode = $state<'fast' | 'slow'>('fast');
+	let requestedCapacity = $state(20);
+	let isLoading = $state(false);
+	let isModifying = $state(false);
+	let error = $state('');
+	let success = $state('');
+
 	// 计费预览
-	let estimatedChargingTime = 0;
-	let estimatedFee = {
+	let estimatedChargingTime = $state(0);
+	let estimatedFee = $state({
 		chargingFee: 0,
 		serviceFee: 0,
 		totalFee: 0,
-		priceType: 'normal' as 'peak' | 'normal' | 'valley'
-	};
-
-	// 弹窗状态
-	let showErrorDialog = false;
-	let errorDialogMessage = '';
-
-	// 检查是否有活动的请求
-	onMount(async () => {
-		if ($chargingRequest) {
-			// 如果有存储的请求，使用它
-			isModifying = $chargingRequest.status === 'waiting';
-			if (isModifying) {
-				// 预填表单
-				chargingMode = $chargingRequest.queueNumber.startsWith('F') ? 'fast' : 'slow';
-				requestedCapacity = $chargingRequest.requestedCapacity || 20;
-			}
-		} else {
-			// 如果没有存储的请求，尝试从API获取
-			try {
-				const latestRequest = await api.charging.getUserLatestRequest();
-				if (latestRequest && (latestRequest as any).status === 'waiting') {
-					$chargingRequest = latestRequest as any;
-					isModifying = true;
-					chargingMode = (latestRequest as any).queueNumber?.startsWith('F') ? 'fast' : 'slow';
-					requestedCapacity = (latestRequest as any).requestedCapacity || 20;
-				}
-			} catch (err: any) {
-				console.error('Failed to get latest request:', err);
-			}
-		}
-
-		updateEstimates();
+		priceType: 'normal' as 'peak' | 'normal' | 'valley',
+		unitPrice: 0
 	});
 
-	// 当表单值改变时更新估计值
-	function updateEstimates() {
-		// 计算充电时间
-		estimatedChargingTime = calculateChargingTime(
-			requestedCapacity,
-			chargingMode === 'fast' ? 30 : 7
-		);
+	// 弹窗状态
+	let showErrorDialog = $state(false);
+	let errorDialogMessage = $state(''); // 检查是否有活动的请求
+	$effect(() => {
+		(async () => {
+			if ($chargingRequest) {
+				// 如果有存储的请求，使用它
+				isModifying = $chargingRequest.status === 'waiting';
+				if (isModifying) {
+					// 预填表单
+					chargingMode = $chargingRequest.queueNumber.startsWith('F') ? 'fast' : 'slow';
+					requestedCapacity = $chargingRequest.requestedCapacity || 20;
+				}
+			} else {
+				// 如果没有存储的请求，尝试从API获取
+				try {
+					const latestRequest = await api.charging.getUserLatestRequest();
+					if (latestRequest && (latestRequest as any).status === 'waiting') {
+						$chargingRequest = latestRequest as any;
+						isModifying = true;
+						chargingMode = (latestRequest as any).queueNumber?.startsWith('F') ? 'fast' : 'slow';
+						requestedCapacity = (latestRequest as any).requestedCapacity || 20;
+					}
+				} catch (err: any) {
+					console.error('Failed to get latest request:', err);
+				}
+			}
+			await updateEstimates();
+		})();
+	});
 
-		// 计算费用（使用当前时间）
-		estimatedFee = calculateChargingFee(requestedCapacity, new Date().toISOString());
+	// 使用API计算充电时间和费用
+	async function updateEstimates() {
+		try {
+			const result = await api.billing.calculateFee({
+				capacity: requestedCapacity,
+				chargingMode,
+				startTime: new Date().toISOString()
+			});
+
+			estimatedChargingTime = (result as any).chargingDuration;
+			estimatedFee = {
+				chargingFee: (result as any).chargingFee,
+				serviceFee: (result as any).serviceFee,
+				totalFee: (result as any).totalFee,
+				priceType: (result as any).priceType,
+				unitPrice: (result as any).unitPrice
+			};
+		} catch (err) {
+			console.error('Failed to calculate estimates:', err);
+			// 如果API调用失败，设置默认值
+			estimatedChargingTime = 0;
+			estimatedFee = {
+				chargingFee: 0,
+				serviceFee: 0,
+				totalFee: 0,
+				priceType: 'normal',
+				unitPrice: 0
+			};
+		}
 	}
 
-	// 监听表单值变化
-	$: {
-		requestedCapacity = Math.max(
-			0.1,
-			Math.min(Number($auth.user?.vehicleInfo?.batteryCapacity || 60), requestedCapacity)
-		);
+	// 监听表单值变化并更新充电量限制
+	$effect(() => {
+		const maxCapacity = Number($auth.user?.vehicleInfo?.batteryCapacity || 60);
+		requestedCapacity = Math.max(0.1, Math.min(maxCapacity, requestedCapacity));
+	});
+
+	// 当充电模式或充电量变化时更新估算
+	$effect(() => {
+		// 确保依赖chargingMode和requestedCapacity
+		chargingMode;
+		requestedCapacity;
 		updateEstimates();
-	}
+	});
 
 	// 提交充电请求
 	async function submitRequest() {
