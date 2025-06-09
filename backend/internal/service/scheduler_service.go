@@ -616,10 +616,25 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 	if err != nil {
 		return fmt.Errorf("更新充电桩状态失败: %w", err)
 	}
+
 	// 获取该充电桩的所有队列请求（包括正在充电和排队的）
 	queuedRequests, err := s.requestRepo.GetRequestsByPile(pileID)
 	if err != nil {
 		log.Printf("获取充电桩队列失败: %v", err)
+	}
+
+	// 从故障充电桩队列中移除所有排队请求
+	for _, req := range queuedRequests {
+		err := s.queueRepo.RemoveFromQueue(req.ID)
+		if err != nil {
+			log.Printf("从故障充电桩队列移除请求 %s 失败: %v", req.ID, err)
+		}
+	}
+
+	// 更新充电桩队列长度为0
+	err = s.pileRepo.UpdateQueueLength(pileID, 0)
+	if err != nil {
+		log.Printf("更新充电桩队列长度失败: %v", err)
 	}
 
 	// 获取该充电桩上正在充电的会话
@@ -981,15 +996,6 @@ func (s *SchedulerService) executeFaultRescheduling(pileType model.PileType, fau
 	}
 
 	log.Printf("同类型充电桩总空位数: %d, 故障队列请求数: %d", totalAvailableSlots, len(faultRequests))
-
-	// 从故障充电桩队列中移除所有排队请求
-	for _, req := range faultRequests {
-		err := s.queueRepo.RemoveFromQueue(req.ID)
-		if err != nil {
-			log.Printf("从故障充电桩队列移除请求 %s 失败: %v", req.ID, err)
-		}
-	}
-
 	if totalAvailableSlots >= len(faultRequests) {
 		// 空位足够，直接将故障队列请求分配到其他充电桩
 		log.Printf("空位充足，直接分配故障队列请求到其他充电桩")
@@ -1050,6 +1056,21 @@ func (s *SchedulerService) executeGlobalReschedulingForFault(pileType model.Pile
 		err := s.queueRepo.RemoveFromQueue(req.ID)
 		if err != nil {
 			log.Printf("从队列移除请求 %s 失败: %v", req.ID, err)
+		}
+
+		// 更新充电桩队列长度
+		pile, err := s.pileRepo.GetByID(req.PileID)
+		if err != nil {
+			log.Printf("获取充电桩 %s 失败: %v", req.PileID, err)
+			continue
+		}
+		if pile.QueueLength > 0 {
+			err = s.pileRepo.UpdateQueueLength(req.PileID, pile.QueueLength-1)
+			if err != nil {
+				log.Printf("更新充电桩 %s 队列长度失败: %v", req.PileID, err)
+				continue
+			}
+			log.Printf("充电桩 %s 队列长度已更新为 %d", req.PileID, pile.QueueLength-1)
 		}
 
 		// 清除充电桩分配
