@@ -38,8 +38,7 @@ type FaultRecord struct {
 
 // FaultReportRequest 故障报告请求
 type FaultReportRequest struct {
-	FaultType            FaultType `json:"faultType" binding:"required,oneof=hardware software power"`
-	ReschedulingStrategy string    `json:"reschedulingStrategy" binding:"required,oneof=priority time_order"`
+	FaultType FaultType `json:"faultType" binding:"required,oneof=hardware software power"`
 }
 
 // FaultRecoveryRequest 故障恢复请求
