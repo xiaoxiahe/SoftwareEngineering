@@ -42,10 +42,10 @@ func (r *ChargingRequestRepository) Create(request *model.ChargingRequest) (*mod
 	// 插入新的充电请求
 	query := `
 		INSERT INTO charging_requests 
-		(id, user_id, charging_mode, requested_capacity, queue_number, status, priority, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		(id, user_id, charging_mode, requested_capacity, queue_number, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		          pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		          pile_id, queue_position, estimated_wait_time, created_at, updated_at
 	`
 	now := time.Now().UTC()
 	var newRequest model.ChargingRequest
@@ -60,7 +60,6 @@ func (r *ChargingRequestRepository) Create(request *model.ChargingRequest) (*mod
 		request.RequestedCapacity,
 		request.QueueNumber,
 		request.Status,
-		request.Priority,
 		now,
 		now,
 	).Scan(
@@ -73,7 +72,6 @@ func (r *ChargingRequestRepository) Create(request *model.ChargingRequest) (*mod
 		&pileID,
 		&queuePosition,
 		&estimatedWaitTime,
-		&newRequest.Priority,
 		&newRequest.CreatedAt,
 		&newRequest.UpdatedAt,
 	)
@@ -100,7 +98,7 @@ func (r *ChargingRequestRepository) Create(request *model.ChargingRequest) (*mod
 func (r *ChargingRequestRepository) GetByID(id uuid.UUID) (*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE id = $1
 	`
@@ -120,7 +118,6 @@ func (r *ChargingRequestRepository) GetByID(id uuid.UUID) (*model.ChargingReques
 		&pileID,
 		&queuePosition,
 		&estimatedWaitTime,
-		&request.Priority,
 		&request.CreatedAt,
 		&request.UpdatedAt,
 	)
@@ -149,7 +146,7 @@ func (r *ChargingRequestRepository) GetByID(id uuid.UUID) (*model.ChargingReques
 func (r *ChargingRequestRepository) GetActiveRequestByUserID(userID uuid.UUID) (*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE user_id = $1 AND status IN ('waiting', 'queued', 'charging')
 		ORDER BY created_at DESC
@@ -171,7 +168,6 @@ func (r *ChargingRequestRepository) GetActiveRequestByUserID(userID uuid.UUID) (
 		&pileID,
 		&queuePosition,
 		&estimatedWaitTime,
-		&request.Priority,
 		&request.CreatedAt,
 		&request.UpdatedAt,
 	)
@@ -200,7 +196,7 @@ func (r *ChargingRequestRepository) GetActiveRequestByUserID(userID uuid.UUID) (
 func (r *ChargingRequestRepository) GetLatestRequestByUserID(userID uuid.UUID) (*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -222,7 +218,6 @@ func (r *ChargingRequestRepository) GetLatestRequestByUserID(userID uuid.UUID) (
 		&pileID,
 		&queuePosition,
 		&estimatedWaitTime,
-		&request.Priority,
 		&request.CreatedAt,
 		&request.UpdatedAt,
 	)
@@ -285,7 +280,7 @@ func (r *ChargingRequestRepository) UpdateRequest(request *model.ChargingRequest
 		UPDATE charging_requests
 		SET charging_mode = $1, requested_capacity = $2, queue_number = $3, 
 		    pile_id = $4, queue_position = $5, status = $6, estimated_wait_time = $7, 
-		    priority = $8, updated_at = $9
+		    updated_at = $8
 		WHERE id = $10
 	`
 
@@ -303,7 +298,6 @@ func (r *ChargingRequestRepository) UpdateRequest(request *model.ChargingRequest
 		request.QueuePosition,
 		request.Status,
 		request.EstimatedWaitTime,
-		request.Priority,
 		time.Now().UTC(),
 		request.ID,
 	)
@@ -315,10 +309,10 @@ func (r *ChargingRequestRepository) UpdateRequest(request *model.ChargingRequest
 func (r *ChargingRequestRepository) GetWaitingRequestsByMode(mode model.ChargingMode) ([]*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE charging_mode = $1 AND status = 'waiting'
-		ORDER BY priority DESC, created_at ASC
+		ORDER BY created_at ASC
 	`
 
 	rows, err := r.db.Query(query, mode)
@@ -344,7 +338,6 @@ func (r *ChargingRequestRepository) GetWaitingRequestsByMode(mode model.Charging
 			&pileID,
 			&queuePosition,
 			&estimatedWaitTime,
-			&request.Priority,
 			&request.CreatedAt,
 			&request.UpdatedAt,
 		)
@@ -380,26 +373,14 @@ func (r *ChargingRequestRepository) CountWaitingRequests() (int, error) {
 	return count, err
 }
 
-// UpdateRequestPriority 更新请求优先级
-func (r *ChargingRequestRepository) UpdateRequestPriority(id uuid.UUID, priority model.RequestPriority) error {
-	query := `
-		UPDATE charging_requests
-		SET priority = $1, updated_at = $2
-		WHERE id = $3
-	`
-
-	_, err := r.db.Exec(query, priority, time.Now().UTC(), id)
-	return err
-}
-
 // GetQueuedRequestsByPile 获取指定充电桩的排队请求（按优先级和时间排序）
 func (r *ChargingRequestRepository) GetQueuedRequestsByPile(pileID string) ([]*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE pile_id = $1 AND status = 'queued'
-		ORDER BY priority DESC, queue_position ASC, created_at ASC
+		ORDER BY queue_position ASC, created_at ASC
 	`
 
 	rows, err := r.db.Query(query, pileID)
@@ -425,7 +406,6 @@ func (r *ChargingRequestRepository) GetQueuedRequestsByPile(pileID string) ([]*m
 			&pID,
 			&queuePosition,
 			&estimatedWaitTime,
-			&request.Priority,
 			&request.CreatedAt,
 			&request.UpdatedAt,
 		)
@@ -458,10 +438,10 @@ func (r *ChargingRequestRepository) GetQueuedRequestsByPile(pileID string) ([]*m
 func (r *ChargingRequestRepository) GetRequestsByPile(pileID string) ([]*model.ChargingRequest, error) {
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE pile_id = $1 AND status IN ('queued', 'charging')
-		ORDER BY priority DESC, queue_position ASC
+		ORDER BY queue_position ASC
 	`
 
 	rows, err := r.db.Query(query, pileID)
@@ -487,7 +467,6 @@ func (r *ChargingRequestRepository) GetRequestsByPile(pileID string) ([]*model.C
 			&pID,
 			&queuePosition,
 			&estimatedWaitTime,
-			&request.Priority,
 			&request.CreatedAt,
 			&request.UpdatedAt,
 		)
@@ -528,7 +507,7 @@ func (r *ChargingRequestRepository) GetUserRequests(userID uuid.UUID, page, page
 	offset := (page - 1) * pageSize
 	query := `
 		SELECT id, user_id, charging_mode, requested_capacity, queue_number, status, 
-		       pile_id, queue_position, estimated_wait_time, priority, created_at, updated_at
+		       pile_id, queue_position, estimated_wait_time, created_at, updated_at
 		FROM charging_requests
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -558,7 +537,6 @@ func (r *ChargingRequestRepository) GetUserRequests(userID uuid.UUID, page, page
 			&pileID,
 			&queuePosition,
 			&estimatedWaitTime,
-			&request.Priority,
 			&request.CreatedAt,
 			&request.UpdatedAt,
 		)

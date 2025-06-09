@@ -300,7 +300,6 @@ func getConfigDescription(key string) string {
 		"fast_charging_power":       "快充功率(度/小时)",
 		"trickle_charging_power":    "慢充功率(度/小时)",
 		"service_fee_per_unit":      "服务费率(元/度)",
-		"fault_rescheduling_policy": "故障重新调度策略(priority/time_order)",
 	}
 
 	if desc, ok := descriptions[key]; ok {

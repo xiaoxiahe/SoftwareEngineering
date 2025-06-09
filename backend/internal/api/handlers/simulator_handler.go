@@ -130,8 +130,7 @@ func (h *SimulatorHandler) ReportFault(w http.ResponseWriter, r *http.Request) {
 		Code:    200,
 		Message: "故障已报告，正在重新调度",
 		Data: map[string]any{
-			"faultId":              faultID,
-			"reschedulingStrategy": "priority", // 默认使用优先级策略
+			"faultId": faultID,
 		},
 		Timestamp: model.NowTimestamp(),
 	}

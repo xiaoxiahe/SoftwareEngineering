@@ -5,7 +5,7 @@
       "power": 30.0
     },
     "trickle": {
-      "count": 1,
+      "count": 3,
       "power": 7.0
     }
   },

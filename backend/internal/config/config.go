@@ -41,15 +41,14 @@ type AuthConfig struct {
 
 // ChargingConfig 充电系统配置
 type ChargingConfig struct {
-	FastChargingPileNum       int     `json:"fastChargingPileNum"`
-	TrickleChargingPileNum    int     `json:"trickleChargingPileNum"`
-	WaitingAreaSize           int     `json:"waitingAreaSize"`
-	ChargingQueueLen          int     `json:"chargingQueueLen"`
-	FastChargingPower         float64 `json:"fastChargingPower"`
-	TrickleChargingPower      float64 `json:"trickleChargingPower"`
-	ServiceFeePerUnit         float64 `json:"serviceFeePerUnit"`
-	FaultReschedulingStrategy string  `json:"faultReschedulingStrategy"` // "priority" 或 "time_order"
-	ExtendedSchedulingMode    string  `json:"extendedSchedulingMode"`    // "disabled", "batch"
+	FastChargingPileNum    int     `json:"fastChargingPileNum"`
+	TrickleChargingPileNum int     `json:"trickleChargingPileNum"`
+	WaitingAreaSize        int     `json:"waitingAreaSize"`
+	ChargingQueueLen       int     `json:"chargingQueueLen"`
+	FastChargingPower      float64 `json:"fastChargingPower"`
+	TrickleChargingPower   float64 `json:"trickleChargingPower"`
+	ServiceFeePerUnit      float64 `json:"serviceFeePerUnit"`
+	ExtendedSchedulingMode string  `json:"extendedSchedulingMode"` // "disabled", "batch"
 }
 
 // PricingConfig 计价配置

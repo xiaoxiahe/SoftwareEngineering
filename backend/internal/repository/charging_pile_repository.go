@@ -223,6 +223,50 @@ func (r *ChargingPileRepository) GetAvailablePiles(pileType model.PileType, maxQ
 	return piles, nil
 }
 
+// GetNormalPiles 获取正常状态的充电桩
+func (r *ChargingPileRepository) GetNormalPiles(pileType model.PileType) ([]*model.ChargingPile, error) {
+	query := `
+		SELECT id, pile_type, power, status, queue_length, 
+		       total_sessions, total_duration, total_energy, created_at, updated_at
+		FROM charging_piles
+		WHERE pile_type = $1 AND status != 'fault' AND status != 'maintenance' AND status != 'offline'
+		ORDER BY queue_length, id
+	`
+
+	rows, err := r.db.Query(query, pileType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var piles []*model.ChargingPile
+	for rows.Next() {
+		var pile model.ChargingPile
+		err := rows.Scan(
+			&pile.ID,
+			&pile.PileType,
+			&pile.Power,
+			&pile.Status,
+			&pile.QueueLength,
+			&pile.TotalSessions,
+			&pile.TotalDuration,
+			&pile.TotalEnergy,
+			&pile.CreatedAt,
+			&pile.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		piles = append(piles, &pile)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return piles, nil
+}
+
 // Create 创建新充电桩
 func (r *ChargingPileRepository) Create(pile *model.ChargingPile) error {
 	query := `

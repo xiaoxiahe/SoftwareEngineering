@@ -25,29 +25,19 @@ const (
 	RequestStatusCancelled RequestStatus = "cancelled" // 已取消
 )
 
-// RequestPriority 请求优先级
-type RequestPriority int
-
-const (
-	PriorityNormal   RequestPriority = 0 // 正常优先级
-	PriorityFault    RequestPriority = 1 // 故障重调度优先级
-	PriorityRecovery RequestPriority = 2 // 故障恢复重调度优先级
-)
-
 // ChargingRequest 充电请求
 type ChargingRequest struct {
-	ID                uuid.UUID       `json:"id"`
-	UserID            uuid.UUID       `json:"userId"`
-	ChargingMode      ChargingMode    `json:"chargingMode"`      // fast/slow
-	RequestedCapacity float64         `json:"requestedCapacity"` // 请求充电量(度)
-	QueueNumber       string          `json:"queueNumber"`       // F1, T1 等
-	PileID            string          `json:"pileId,omitempty"`  // 分配的充电桩ID
-	QueuePosition     int             `json:"queuePosition"`     // 队列位置
-	Status            RequestStatus   `json:"status"`            // waiting/queued/charging/completed/cancelled
-	Priority          RequestPriority `json:"priority"`          // 优先级
-	EstimatedWaitTime int             `json:"estimatedWaitTime"` // 预估等待时间(秒)
-	CreatedAt         time.Time       `json:"createdAt"`
-	UpdatedAt         time.Time       `json:"updatedAt"`
+	ID                uuid.UUID     `json:"id"`
+	UserID            uuid.UUID     `json:"userId"`
+	ChargingMode      ChargingMode  `json:"chargingMode"`      // fast/slow
+	RequestedCapacity float64       `json:"requestedCapacity"` // 请求充电量(度)
+	QueueNumber       string        `json:"queueNumber"`       // F1, T1 等
+	PileID            string        `json:"pileId,omitempty"`  // 分配的充电桩ID
+	QueuePosition     int           `json:"queuePosition"`     // 队列位置
+	Status            RequestStatus `json:"status"`            // waiting/queued/charging/completed/cancelled
+	EstimatedWaitTime int           `json:"estimatedWaitTime"` // 预估等待时间(秒)
+	CreatedAt         time.Time     `json:"createdAt"`
+	UpdatedAt         time.Time     `json:"updatedAt"`
 }
 
 // ChargingRequestCreate 创建充电请求

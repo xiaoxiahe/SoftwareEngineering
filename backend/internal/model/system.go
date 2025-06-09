@@ -38,8 +38,7 @@ type FaultRecord struct {
 
 // FaultReportRequest 故障报告请求
 type FaultReportRequest struct {
-	FaultType            FaultType `json:"faultType" binding:"required,oneof=hardware software power"`
-	ReschedulingStrategy string    `json:"reschedulingStrategy" binding:"required,oneof=priority time_order"`
+	FaultType FaultType `json:"faultType" binding:"required,oneof=hardware software power"`
 }
 
 // FaultRecoveryRequest 故障恢复请求
@@ -58,14 +57,6 @@ type SystemConfig struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// FaultReschedulingStrategy 故障重调度策略
-type FaultReschedulingStrategy string
-
-const (
-	FaultStrategyPriority  FaultReschedulingStrategy = "priority"   // 优先级调度
-	FaultStrategyTimeOrder FaultReschedulingStrategy = "time_order" // 时间顺序调度
-)
-
 // ExtendedSchedulingMode 扩展调度模式
 type ExtendedSchedulingMode string
 
@@ -76,15 +67,14 @@ const (
 
 // SchedulingConfig 调度配置
 type SchedulingConfig struct {
-	Strategy               string                    `json:"strategy"` // shortest_completion_time, etc.
-	FastChargingPileNum    int                       `json:"fastChargingPileNum"`
-	SlowChargingPileNum    int                       `json:"slowChargingPileNum"`
-	WaitingAreaSize        int                       `json:"waitingAreaSize"`
-	ChargingQueueLen       int                       `json:"chargingQueueLen"`
-	FastChargingPower      float64                   `json:"fastChargingPower"`      // 度/小时
-	SlowChargingPower      float64                   `json:"slowChargingPower"`      // 度/小时
-	FaultRescheduling      FaultReschedulingStrategy `json:"faultRescheduling"`      // 故障重调度策略
-	ExtendedSchedulingMode ExtendedSchedulingMode    `json:"extendedSchedulingMode"` // 扩展调度模式
+	Strategy               string                 `json:"strategy"` // shortest_completion_time, etc.
+	FastChargingPileNum    int                    `json:"fastChargingPileNum"`
+	SlowChargingPileNum    int                    `json:"slowChargingPileNum"`
+	WaitingAreaSize        int                    `json:"waitingAreaSize"`
+	ChargingQueueLen       int                    `json:"chargingQueueLen"`
+	FastChargingPower      float64                `json:"fastChargingPower"`      // 度/小时
+	SlowChargingPower      float64                `json:"slowChargingPower"`      // 度/小时
+	ExtendedSchedulingMode ExtendedSchedulingMode `json:"extendedSchedulingMode"` // 扩展调度模式
 }
 
 // StatisticsReport 统计报表

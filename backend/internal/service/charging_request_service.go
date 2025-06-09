@@ -252,11 +252,6 @@ func (s *ChargingRequestService) GetRequestByID(requestID uuid.UUID) (*model.Cha
 	return s.requestRepo.GetByID(requestID)
 }
 
-// GetUserPosition 获取用户在队列中的位置
-func (s *ChargingRequestService) GetUserPosition(userID uuid.UUID) (*model.UserPosition, error) {
-	return s.queueRepo.GetUserPosition(userID)
-}
-
 // generateQueueNumber 生成队列号
 func (s *ChargingRequestService) generateQueueNumber(mode model.ChargingMode) string {
 	s.mutex.Lock()

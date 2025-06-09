@@ -177,8 +177,8 @@ func (s *SchedulerService) executeNormalScheduling(config *model.SchedulingConfi
 		return
 	}
 	// 根据配置的调度策略排序请求
-	s.sortRequestsByStrategy(fastRequests, config.FaultRescheduling)
-	s.sortRequestsByStrategy(slowRequests, config.FaultRescheduling)
+	s.sortRequests(fastRequests)
+	s.sortRequests(slowRequests)
 
 	// 获取可用的充电桩
 	fastPiles, err := s.pileRepo.GetAvailablePiles(model.PileTypeFast, config.ChargingQueueLen)
@@ -224,22 +224,12 @@ func (s *SchedulerService) executeNormalScheduling(config *model.SchedulingConfi
 	}
 }
 
-// sortRequestsByStrategy 根据配置的调度策略对请求进行排序
-func (s *SchedulerService) sortRequestsByStrategy(requests []*model.ChargingRequest, strategy model.FaultReschedulingStrategy) {
-	if strategy == model.FaultStrategyPriority {
-		// 优先级调度：高优先级优先，同优先级按队列号(时间)排序
-		sort.Slice(requests, func(i, j int) bool {
-			if requests[i].Priority != requests[j].Priority {
-				return requests[i].Priority > requests[j].Priority
-			}
-			return requests[i].QueueNumber < requests[j].QueueNumber
-		})
-	} else {
-		// 时间顺序调度：纯粹按队列号(时间)排序
-		sort.Slice(requests, func(i, j int) bool {
-			return requests[i].QueueNumber < requests[j].QueueNumber
-		})
-	}
+// sortRequests 根据配置的调度策略对请求进行排序
+func (s *SchedulerService) sortRequests(requests []*model.ChargingRequest) {
+	// 时间顺序调度：纯粹按队列号(时间)排序
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].QueueNumber < requests[j].QueueNumber
+	})
 }
 
 // findBestPile 找到完成充电所需时长最短的充电桩
@@ -499,7 +489,6 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	now := time.Now().UTC()
 	session.EndTime = &now
 	session.Duration = now.Sub(session.StartTime).Seconds() // 获取充电桩信息（用于后续更新统计和队列）
-	pile, err := s.pileRepo.GetByID(pileID)
 	if err != nil {
 		log.Printf("获取充电桩失败: %v", err)
 		return
@@ -544,7 +533,7 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	}
 
 	// 从队列中移除
-	err = s.queueRepo.RemoveFromQueue(requestID)
+	err = s.queueRepo.RemoveFromQueueAndDecrementPile(requestID, pileID)
 	if err != nil {
 		log.Printf("从队列中移除失败: %v", err)
 		return
@@ -554,12 +543,6 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	err = s.pileRepo.UpdateStatus(pileID, model.PileStatusAvailable)
 	if err != nil {
 		log.Printf("更新充电桩状态失败: %v", err)
-		return
-	}
-
-	err = s.pileRepo.UpdateQueueLength(pileID, pile.QueueLength-1)
-	if err != nil {
-		log.Printf("更新充电桩队列长度失败: %v", err)
 		return
 	}
 
@@ -631,38 +614,20 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 	queuedRequests, err := s.requestRepo.GetRequestsByPile(pileID)
 	if err != nil {
 		log.Printf("获取充电桩队列失败: %v", err)
-	} else {
-		// 将故障队列中的请求移除，放回到等待区，并给予高优先级
-		for _, req := range queuedRequests {
-			// 设置高优先级
-			req.Priority = model.PriorityFault
-			err := s.requestRepo.UpdateRequestPriority(req.ID, req.Priority)
-			if err != nil {
-				log.Printf("更新请求优先级失败: %v", err)
-			}
+	}
 
-			// 将请求状态重置为等候
-			err = s.requestRepo.UpdateRequestStatus(req.ID, model.RequestStatusWaiting)
-			if err != nil {
-				log.Printf("重置请求状态失败: %v", err)
-				continue
-			}
-
-			// 清除充电桩分配
-			err = s.requestRepo.AssignToPile(req.ID, "", 0, 0, model.RequestStatusWaiting)
-			if err != nil {
-				log.Printf("清除充电桩分配失败: %v", err)
-				continue
-			}
-
-			// 从队列中移除
-			err = s.queueRepo.RemoveFromQueue(req.ID)
-			if err != nil {
-				log.Printf("从队列移除失败: %v", err)
-			}
-
-			log.Printf("故障请求 %s 已移回等待区并设置高优先级", req.ID)
+	// 从故障充电桩队列中移除所有排队请求
+	for _, req := range queuedRequests {
+		err := s.queueRepo.RemoveFromQueue(req.ID)
+		if err != nil {
+			log.Printf("从故障充电桩队列移除请求 %s 失败: %v", req.ID, err)
 		}
+	}
+
+	// 更新充电桩队列长度为0
+	err = s.pileRepo.UpdateQueueLength(pileID, 0)
+	if err != nil {
+		log.Printf("更新充电桩队列长度失败: %v", err)
 	}
 
 	// 获取该充电桩上正在充电的会话
@@ -690,18 +655,6 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 			log.Printf("更新充电会话失败: %v", err)
 		}
 
-		// 更新请求状态为等候重新调度，并设置高优先级
-		err = s.requestRepo.UpdateRequestStatus(session.RequestID, model.RequestStatusWaiting)
-		if err != nil {
-			log.Printf("更新请求状态失败: %v", err)
-		} else {
-			// 为正在充电的请求也设置高优先级
-			err = s.requestRepo.UpdateRequestPriority(session.RequestID, model.PriorityFault)
-			if err != nil {
-				log.Printf("更新正在充电请求的优先级失败: %v", err)
-			}
-		}
-
 		// 生成部分详单
 		if s.billingService != nil {
 			_, err = s.billingService.GenerateBill(session.ID)
@@ -710,13 +663,17 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 			}
 		}
 	}
-	// 重置充电桩队列长度
-	err = s.pileRepo.UpdateQueueLength(pileID, 0)
+
+	// 获取故障充电桩的类型信息
+	faultPile, err := s.pileRepo.GetByID(pileID)
 	if err != nil {
-		log.Printf("重置故障充电桩队列长度失败: %v", err)
+		log.Printf("获取故障充电桩信息失败: %v", err)
+	} else if len(queuedRequests) > 0 {
+		// 执行智能故障调度
+		s.executeFaultRescheduling(faultPile.PileType, queuedRequests)
 	}
 
-	// 在释放锁后触发故障调度，避免死锁
+	// 在释放锁后触发调度，避免死锁
 	// 使用 defer 确保在方法返回前执行
 	defer func() {
 		go s.TryScheduleRequests()
@@ -771,11 +728,11 @@ func (s *SchedulerService) ExecuteBatchScheduling() error {
 
 	allRequests := append(fastRequests, slowRequests...)
 	if len(allRequests) < totalSlots {
-		return fmt.Errorf("等候区车辆数量不足: 需要%d辆，实际%d辆 (基于可用充电桩: 快充%d个, 慢充%d个)",
+		return fmt.Errorf("等候区车辆数量不足: 需要%d辆，实际%d辆 (基于可用充电区: 快充%d个, 慢充%d个)",
 			totalSlots, len(allRequests), len(availableFastPiles), len(availableSlowPiles))
 	}
 	// 根据配置的调度策略排序，取前totalSlots个
-	s.sortRequestsByStrategy(allRequests, config.FaultRescheduling)
+	s.sortRequests(allRequests)
 	selectedRequests := allRequests[:totalSlots]
 
 	// 计算最优分配方案（忽略充电模式限制）
@@ -885,26 +842,15 @@ func (s *SchedulerService) CompleteCharging(pileID, userID string, startTime, en
 	}
 
 	// 从队列中移除
-	err = s.queueRepo.RemoveFromQueue(session.RequestID)
+	err = s.queueRepo.RemoveFromQueueAndDecrementPile(session.RequestID, pileID)
 	if err != nil {
 		return fmt.Errorf("从队列中移除失败: %w", err)
-	}
-
-	// 获取充电桩信息
-	pile, err := s.pileRepo.GetByID(pileID)
-	if err != nil {
-		return fmt.Errorf("获取充电桩失败: %w", err)
 	}
 
 	// 更新充电桩状态和队列长度
 	err = s.pileRepo.UpdateStatus(pileID, model.PileStatusAvailable)
 	if err != nil {
 		return fmt.Errorf("更新充电桩状态失败: %w", err)
-	}
-
-	err = s.pileRepo.UpdateQueueLength(pileID, pile.QueueLength-1)
-	if err != nil {
-		return fmt.Errorf("更新充电桩队列长度失败: %w", err)
 	}
 
 	// 更新充电桩统计信息
@@ -1004,4 +950,166 @@ func (s *SchedulerService) checkAndExecuteBatchScheduling(config *model.Scheduli
 		log.Printf("批量调度等待中: 当前等候区车辆数量=%d，需要达到可用总车位数=%d (可用快充桩:%d, 可用慢充桩:%d)",
 			len(allRequests), totalSlots, len(availableFastPiles), len(availableSlowPiles))
 	}
+}
+
+// executeFaultRescheduling 执行智能故障调度
+// 首先在同类型充电桩中查找空位，如果不够则重新调度所有排队请求
+func (s *SchedulerService) executeFaultRescheduling(pileType model.PileType, faultRequests []*model.ChargingRequest) {
+	log.Printf("开始执行故障调度，充电桩类型: %s, 故障队列请求数: %d", pileType, len(faultRequests))
+
+	// 获取系统配置
+	config, err := s.systemRepo.GetSchedulingConfig()
+	if err != nil {
+		log.Printf("获取系统配置失败: %v", err)
+		return
+	}
+
+	// 获取所有同类型的可用充电桩
+	availablePiles, err := s.pileRepo.GetAvailablePiles(pileType, config.ChargingQueueLen)
+	if err != nil {
+		log.Printf("获取可用充电桩失败: %v", err)
+		return
+	}
+
+	// 计算同类型充电桩的总空位数
+	totalAvailableSlots := 0
+	for _, pile := range availablePiles {
+		totalAvailableSlots += (config.ChargingQueueLen - pile.QueueLength)
+	}
+
+	log.Printf("同类型充电桩总空位数: %d, 故障队列请求数: %d", totalAvailableSlots, len(faultRequests))
+	if totalAvailableSlots >= len(faultRequests) {
+		// 空位足够，直接将故障队列请求分配到其他充电桩
+		log.Printf("空位充足，直接分配故障队列请求到其他充电桩")
+		s.redistributeFaultRequests(faultRequests, availablePiles, config.ChargingQueueLen)
+	} else {
+		// 空位不够，需要重新调度所有同类型充电桩的排队请求
+		log.Printf("空位不足，执行全局重调度")
+		s.executeGlobalReschedulingForFault(pileType, faultRequests, config)
+	}
+}
+
+// redistributeFaultRequests 将故障队列请求重新分配到可用充电桩
+func (s *SchedulerService) redistributeFaultRequests(faultRequests []*model.ChargingRequest, availablePiles []*model.ChargingPile, maxQueueLen int) {
+	// 按排队号排序故障请求，保持原有顺序
+	s.sortRequests(faultRequests)
+
+	for _, req := range faultRequests {
+		// 找到最佳充电桩（队列最短且有空位）
+		bestPile := s.findBestPile(availablePiles, req.RequestedCapacity, maxQueueLen)
+		if bestPile != nil {
+			// 调度到该充电桩
+			s.scheduleRequestToPile(req.ID, bestPile.ID, bestPile.QueueLength+1)
+			// 更新本地充电桩队列长度
+			bestPile.QueueLength++
+			log.Printf("故障请求 %s (排队号: %s) 重新分配到充电桩 %s", req.ID, req.QueueNumber, bestPile.ID)
+		} else {
+			// 没有可用充电桩，将请求放回等待区
+			err := s.requestRepo.AssignToPile(req.ID, "", 0, 0, model.RequestStatusWaiting)
+			if err != nil {
+				log.Printf("将请求 %s 放回等待区失败: %v", req.ID, err)
+			} else {
+				log.Printf("故障请求 %s (排队号: %s) 已放回等待区", req.ID, req.QueueNumber)
+			}
+		}
+		time.Sleep(10 * time.Millisecond) // 避免过度并发
+	}
+}
+
+// executeGlobalReschedulingForFault 执行全局重调度处理故障
+func (s *SchedulerService) executeGlobalReschedulingForFault(pileType model.PileType, faultRequests []*model.ChargingRequest, config *model.SchedulingConfig) {
+	// 收集所有同类型充电桩中的排队请求
+	allQueuedRequests, err := s.collectQueuedRequestsFromSameTypePiles(pileType)
+	if err != nil {
+		log.Printf("收集同类型充电桩排队请求失败: %v", err)
+		return
+	}
+
+	// 合并故障请求和现有排队请求
+	allRequests := append(allQueuedRequests, faultRequests...)
+
+	// 按排队号排序，保持公平性
+	s.sortRequests(allRequests)
+
+	log.Printf("全局重调度: 总请求数 %d (故障: %d, 现有排队: %d)", len(allRequests), len(faultRequests), len(allQueuedRequests))
+
+	// 从所有充电桩队列中移除这些请求
+	for _, req := range allQueuedRequests {
+		err := s.queueRepo.RemoveFromQueueAndDecrementPile(req.ID, req.PileID)
+		if err != nil {
+			log.Printf("从队列移除请求 %s 失败: %v", req.ID, err)
+		}
+
+		// 清除充电桩分配
+		err = s.requestRepo.AssignToPile(req.ID, "", 0, 0, model.RequestStatusWaiting)
+		if err != nil {
+			log.Printf("清除请求 %s 充电桩分配失败: %v", req.ID, err)
+		}
+	}
+
+	// 获取可用的同类型充电桩
+	availablePiles, err := s.pileRepo.GetNormalPiles(pileType)
+	if err != nil {
+		log.Printf("获取可用充电桩失败: %v", err)
+		return
+	}
+
+	// 计算可容纳的总请求数，考虑正在充电的充电桩
+	totalCapacity := s.calculateActualAvailableCapacity(availablePiles, config.ChargingQueueLen)
+
+	log.Printf("可用充电桩总容量: %d (充电桩数: %d, 每桩最大队列长度: %d)",
+		totalCapacity, len(availablePiles), config.ChargingQueueLen)
+
+	// 重新调度请求
+	scheduledCount := 0
+	for _, req := range allRequests {
+		if scheduledCount >= totalCapacity {
+			// 超出容量，将剩余请求放回等待区
+			err = s.requestRepo.AssignToPile(req.ID, "", 0, 0, model.RequestStatusWaiting)
+			if err != nil {
+				log.Printf("将多余请求 %s 放回等待区失败: %v", req.ID, err)
+			} else {
+				log.Printf("多余请求 %s (排队号: %s) 已放回等待区", req.ID, req.QueueNumber)
+			}
+			continue
+		}
+
+		// 找到最佳充电桩
+		bestPile := s.findBestPile(availablePiles, req.RequestedCapacity, config.ChargingQueueLen)
+		if bestPile != nil {
+			s.scheduleRequestToPile(req.ID, bestPile.ID, bestPile.QueueLength+1)
+			bestPile.QueueLength++
+			scheduledCount++
+			log.Printf("请求 %s (排队号: %s) 重新调度到充电桩 %s", req.ID, req.QueueNumber, bestPile.ID)
+		} else {
+			// 没有可用充电桩，放回等待区
+			err = s.requestRepo.AssignToPile(req.ID, "", 0, 0, model.RequestStatusWaiting)
+			if err != nil {
+				log.Printf("将请求 %s 放回等待区失败: %v", req.ID, err)
+			} else {
+				log.Printf("请求 %s (排队号: %s) 已放回等待区", req.ID, req.QueueNumber)
+			}
+		}
+		time.Sleep(10 * time.Millisecond) // 避免过度并发
+	}
+
+	log.Printf("全局重调度完成: 成功调度 %d 个请求，%d 个请求放回等待区", scheduledCount, len(allRequests)-scheduledCount)
+}
+
+// calculateActualAvailableCapacity 计算实际可用容量，考虑正在充电的充电桩
+func (s *SchedulerService) calculateActualAvailableCapacity(piles []*model.ChargingPile, maxQueueLength int) int {
+	totalCapacity := 0
+
+	for _, pile := range piles {
+		// 计算该充电桩的实际可用容量
+		pileCapacity := maxQueueLength
+		if pile.Status == model.PileStatusOccupied {
+			// 如果充电桩正在被使用，减去1个位置
+			pileCapacity = maxQueueLength - 1
+		}
+
+		totalCapacity += pileCapacity
+	}
+
+	return totalCapacity
 }

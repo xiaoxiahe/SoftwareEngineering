@@ -127,18 +127,6 @@ export const api = {
     
     getQueueVehicles: (pileId?: string) =>
       fetchApi(`/admin/charging-piles/queue-vehicles${pileId ? `?pileId=${pileId}` : ''}`),
-    
-    reportFault: (pileId: string, faultType: 'hardware' | 'software' | 'power', description: string, reschedulingStrategy: 'priority' | 'time_order') =>
-      fetchApi(`/admin/charging-piles/${pileId}/fault`, {
-        method: 'POST',
-        body: JSON.stringify({ faultType, description, reschedulingStrategy }),
-      }),
-    
-    reportRecovery: (pileId: string, faultId: string, recoveryNotes: string) =>
-      fetchApi(`/admin/charging-piles/${pileId}/recovery`, {
-        method: 'POST',
-        body: JSON.stringify({ faultId, recoveryNotes }),
-      }),
   },
   
   // 计费相关

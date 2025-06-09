@@ -6,25 +6,13 @@
 		CardContent,
 		CardDescription,
 		CardHeader,
-		CardTitle,
-		CardFooter
+		CardTitle
 	} from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
-	import {
-		Dialog,
-		DialogContent,
-		DialogDescription,
-		DialogFooter,
-		DialogHeader,
-		DialogTitle
-	} from '$lib/components/ui/dialog';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { getPileStatusInfo } from '$lib/utils/helpers';
-	import { Label } from '$lib/components/ui/label';
-	import { RadioGroup, RadioGroupItem } from '$lib/components/ui/radio-group';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import type { ChargingPile } from '$lib/types';
 
 	let isLoading = true;
@@ -33,19 +21,6 @@
 		fastChargingPiles: ChargingPile[];
 		slowChargingPiles: ChargingPile[];
 	} | null = null;
-
-	let selectedPile: ChargingPile | null = null;
-	let showControlDialog = false;
-	let showFaultReportDialog = false;
-	let showRecoveryDialog = false;
-
-	// 故障报告表单
-	let faultType: 'hardware' | 'software' | 'power' = 'hardware';
-	let faultDescription = '';
-	let reschedulingStrategy: 'priority' | 'time_order' = 'priority';
-
-	// 恢复表单
-	let recoveryNotes = '';
 
 	// 加载充电桩数据
 	async function loadChargingPiles() {
@@ -70,63 +45,6 @@
 		} catch (err) {
 			console.error(`Failed to ${action} charging pile ${pileId}:`, err);
 			error = `操作充电桩失败: ${err.message}`;
-		}
-	}
-
-	// 获取充电桩详情
-	async function loadPileDetails(pileId: string) {
-		try {
-			selectedPile = await api.chargingPiles.getOne(pileId);
-		} catch (err) {
-			console.error('Failed to load pile details:', err);
-		}
-	}
-
-	// 报告故障
-	async function handleReportFault() {
-		if (!selectedPile) return;
-
-		try {
-			await api.chargingPiles.reportFault(
-				selectedPile.pileId,
-				faultType,
-				faultDescription,
-				reschedulingStrategy
-			);
-			// 重新加载数据
-			await loadChargingPiles();
-			await loadPileDetails(selectedPile.pileId);
-			showFaultReportDialog = false;
-
-			// 重置表单
-			faultType = 'hardware';
-			faultDescription = '';
-			reschedulingStrategy = 'priority';
-		} catch (err) {
-			console.error('Failed to report fault:', err);
-			error = `报告故障失败: ${err.message}`;
-		}
-	}
-
-	// 报告恢复
-	async function handleReportRecovery() {
-		if (!selectedPile) return;
-
-		try {
-			// 这里假设故障ID是从服务器获取的，实际实现中可能需要另外传递
-			const faultId = selectedPile.pileId + '-fault-id'; // 这里应由后端提供
-
-			await api.chargingPiles.reportRecovery(selectedPile.pileId, faultId, recoveryNotes);
-			// 重新加载数据
-			await loadChargingPiles();
-			await loadPileDetails(selectedPile.pileId);
-			showRecoveryDialog = false;
-
-			// 重置表单
-			recoveryNotes = '';
-		} catch (err) {
-			console.error('Failed to report recovery:', err);
-			error = `报告恢复失败: ${err.message}`;
 		}
 	}
 
@@ -294,117 +212,4 @@
 			{/if}
 		</TabsContent>
 	</Tabs>
-
-	<!-- 故障报告对话框 -->
-	<Dialog bind:open={showFaultReportDialog}>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>报告充电桩故障</DialogTitle>
-				<DialogDescription
-					>充电桩 {selectedPile?.pileId || ''} - {selectedPile?.type === 'fast'
-						? '快充'
-						: '慢充'}</DialogDescription
-				>
-			</DialogHeader>
-
-			<form onsubmit={handleReportFault} class="space-y-4">
-				<div class="space-y-2">
-					<Label>故障类型</Label>
-					<RadioGroup
-						value={faultType}
-						onValueChange={(value) => (faultType = value as any)}
-						class="space-y-2"
-					>
-						<div class="flex items-center space-x-2">
-							<RadioGroupItem value="hardware" id="hardware" />
-							<Label for="hardware">硬件故障</Label>
-						</div>
-						<div class="flex items-center space-x-2">
-							<RadioGroupItem value="software" id="software" />
-							<Label for="software">软件故障</Label>
-						</div>
-						<div class="flex items-center space-x-2">
-							<RadioGroupItem value="power" id="power" />
-							<Label for="power">电源故障</Label>
-						</div>
-					</RadioGroup>
-				</div>
-
-				<div class="space-y-2">
-					<Label for="description">故障描述</Label>
-					<Textarea
-						id="description"
-						bind:value={faultDescription}
-						placeholder="请详细描述故障情况"
-					/>
-				</div>
-
-				<div class="space-y-2">
-					<Label>重新调度策略</Label>
-					<RadioGroup
-						value={reschedulingStrategy}
-						onValueChange={(value) => (reschedulingStrategy = value as any)}
-						class="space-y-2"
-					>
-						<div class="flex items-center space-x-2">
-							<RadioGroupItem value="priority" id="priority" />
-							<Label for="priority">优先级调度</Label>
-						</div>
-						<div class="flex items-center space-x-2">
-							<RadioGroupItem value="time_order" id="time_order" />
-							<Label for="time_order">时间顺序调度</Label>
-						</div>
-					</RadioGroup>
-					<p class="text-muted-foreground text-xs">
-						优先级调度：故障队列车辆优先调度到其他同类型充电桩<br />
-						时间顺序调度：按照排队号码先后顺序重新调度
-					</p>
-				</div>
-
-				<DialogFooter>
-					<Button type="button" variant="outline" onclick={() => (showFaultReportDialog = false)}
-						>取消</Button
-					>
-					<Button type="submit" variant="destructive">报告故障</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
-	</Dialog>
-
-	<!-- 故障恢复对话框 -->
-	<Dialog bind:open={showRecoveryDialog}>
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>报告充电桩恢复</DialogTitle>
-				<DialogDescription
-					>充电桩 {selectedPile?.pileId || ''} - {selectedPile?.type === 'fast'
-						? '快充'
-						: '慢充'}</DialogDescription
-				>
-			</DialogHeader>
-
-			<form onsubmit={handleReportRecovery} class="space-y-4">
-				<div class="space-y-2">
-					<Label for="recoveryNotes">恢复说明</Label>
-					<Textarea
-						id="recoveryNotes"
-						bind:value={recoveryNotes}
-						placeholder="请简要说明恢复情况"
-					/>
-				</div>
-
-				<p class="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-					注意:
-					恢复后系统将重新开始为该充电桩调度车辆。如果其他同类型充电桩中有排队车辆，系统将按照排队号码先后顺序重新调度。
-				</p>
-
-				<DialogFooter>
-					<Button type="button" variant="outline" onclick={() => (showRecoveryDialog = false)}
-						>取消</Button
-					>
-					<Button type="submit" class="bg-green-600 hover:bg-green-700">确认恢复</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
-	</Dialog>
 </div>

@@ -4,7 +4,6 @@ import (
 	"backend/internal/model"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 )
 
@@ -115,15 +114,13 @@ func (s *SchedulerService) executeRecoveryRescheduling(pileType model.PileType) 
 	}
 
 	// 按照排队号码排序
-	sort.Slice(allQueuedRequests, func(i, j int) bool {
-		return allQueuedRequests[i].QueuePosition < allQueuedRequests[j].QueuePosition
-	})
+	s.sortRequests(allQueuedRequests)
 
 	log.Printf("找到 %d 个需要重新调度的排队车辆", len(allQueuedRequests))
 
 	// 将所有车辆从原充电桩队列中移除
 	for _, req := range allQueuedRequests {
-		err := s.queueRepo.RemoveFromQueue(req.ID)
+		err := s.queueRepo.RemoveFromQueueAndDecrementPile(req.ID, req.PileID)
 		if err != nil {
 			log.Printf("从队列移除请求 %s 失败: %v", req.ID, err)
 		}

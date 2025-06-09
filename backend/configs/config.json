@@ -10,7 +10,7 @@
     "host": "localhost",
     "port": 5432,
     "user": "postgres",
-    "password": "postgres",
+    "password": "HYXjy9920",
     "dbName": "charging_system",
     "sslMode": "disable"
   },
@@ -20,13 +20,12 @@
   },
   "charging": {
     "fastChargingPileNum": 2,
-    "trickleChargingPileNum": 1,
+    "trickleChargingPileNum": 3,
     "waitingAreaSize": 6,
     "chargingQueueLen": 2,
     "fastChargingPower": 30.0,
     "trickleChargingPower": 7.0,
     "serviceFeePerUnit": 0.8,
-    "faultReschedulingStrategy": "priority",
     "extendedSchedulingMode": "disabled"
   },
   "pricing": {
