@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"backend/internal/model"
@@ -47,6 +48,64 @@ func (r *QueueRepository) RemoveFromQueue(requestID uuid.UUID) error {
 	query := `DELETE FROM queue_status WHERE request_id = $1`
 	_, err := r.db.Exec(query, requestID)
 	return err
+}
+
+// RemoveFromQueueAndDecrementPile 使用事务从队列中删除请求并将充电桩队列长度减1
+func (r *QueueRepository) RemoveFromQueueAndDecrementPile(requestID uuid.UUID, pileID string) error {
+	// 开始事务
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("开始事务失败: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. 从队列中删除请求
+	deleteQuery := `DELETE FROM queue_status WHERE request_id = $1`
+	result, err := tx.Exec(deleteQuery, requestID)
+	if err != nil {
+		return fmt.Errorf("从队列中删除请求失败: %w", err)
+	}
+
+	// 检查是否真的删除了记录
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取删除的行数失败: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("未找到要删除的队列记录，requestID: %s", requestID.String())
+	}
+
+	// 2. 将充电桩队列长度减1（确保不小于0）
+	updateQuery := `
+		UPDATE charging_piles 
+		SET queue_length = GREATEST(queue_length - 1, 0), updated_at = $1
+		WHERE id = $2
+	`
+	result, err = tx.Exec(updateQuery, time.Now().UTC(), pileID)
+	if err != nil {
+		return fmt.Errorf("更新充电桩队列长度失败: %w", err)
+	}
+
+	// 检查是否真的更新了充电桩
+	rowsAffected, err = result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取更新的行数失败: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("未找到要更新的充电桩，pileID: %s", pileID)
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	return nil
 }
 
 // UpdateQueuePosition 更新队列位置
@@ -229,105 +288,4 @@ func (r *QueueRepository) GetQueueStatus() (*model.QueueStatus, error) {
 		SlowQueue:      slowQueue,
 		AvailableSlots: availableSlots,
 	}, nil
-}
-
-// GetUserPosition 获取用户在队列中的位置
-func (r *QueueRepository) GetUserPosition(userID uuid.UUID) (*model.UserPosition, error) {
-	// 首先检查用户是否在等待队列中
-	waitingQuery := `
-		SELECT cr.id, cr.queue_number, cr.charging_mode, cr.status
-		FROM charging_requests cr
-		WHERE cr.user_id = $1 AND cr.status = 'waiting'
-		ORDER BY cr.created_at DESC
-		LIMIT 1
-	`
-
-	var position model.UserPosition
-	position.UserID = userID
-
-	var requestID uuid.UUID
-	err := r.db.QueryRow(waitingQuery, userID).Scan(
-		&requestID,
-		&position.QueueNumber,
-		&position.ChargingMode,
-		&position.Status,
-	)
-
-	if err == nil {
-		// 用户在等待队列中，计算位置
-		var count int
-		var query string
-
-		if position.ChargingMode == model.ChargingModeFast {
-			query = `
-				SELECT COUNT(*) 
-				FROM charging_requests 
-				WHERE charging_mode = 'fast' AND status = 'waiting' AND created_at < (
-					SELECT created_at FROM charging_requests WHERE id = $1
-				)
-			`
-		} else {
-			query = `
-				SELECT COUNT(*) 
-				FROM charging_requests 
-				WHERE charging_mode = 'slow' AND status = 'waiting' AND created_at < (
-					SELECT created_at FROM charging_requests WHERE id = $1
-				)
-			`
-		}
-
-		err := r.db.QueryRow(query, requestID).Scan(&count)
-		if err == nil {
-			position.Position = count + 1
-			return &position, nil
-		}
-	}
-
-	// 检查用户是否在充电桩队列中
-	queuedQuery := `
-		SELECT cr.id, cr.queue_number, cr.charging_mode, cr.status, cr.pile_id, cr.queue_position
-		FROM charging_requests cr
-		WHERE cr.user_id = $1 AND cr.status IN ('queued', 'charging')
-		ORDER BY cr.created_at DESC
-		LIMIT 1
-	`
-
-	err = r.db.QueryRow(queuedQuery, userID).Scan(
-		&requestID,
-		&position.QueueNumber,
-		&position.ChargingMode,
-		&position.Status,
-		&position.AssignedPile,
-		&position.QueuePosition,
-	)
-
-	if err == nil {
-		// 用户在充电桩队列中
-		position.Position = 0 // 已经离开等待队列
-
-		// 计算估计等待时间
-		if position.Status == model.RequestStatusQueued && position.QueuePosition > 0 {
-			// 获取前面的车辆还需要充电多久
-			var waitTimeSeconds int
-			query := `
-				SELECT COALESCE(SUM(
-					CASE 
-						WHEN cr.charging_mode = 'fast' THEN cr.requested_capacity / 30.0 * 3600
-						ELSE cr.requested_capacity / 7.0 * 3600
-					END
-				), 0) as wait_time
-				FROM charging_requests cr
-				WHERE cr.pile_id = $1 AND cr.queue_position < $2 AND cr.status IN ('queued', 'charging')
-			`
-			err := r.db.QueryRow(query, position.AssignedPile, position.QueuePosition).Scan(&waitTimeSeconds)
-			if err == nil {
-				position.WaitingTime = waitTimeSeconds
-			}
-		}
-
-		return &position, nil
-	}
-
-	// 用户没有活跃的充电请求
-	return nil, sql.ErrNoRows
 }

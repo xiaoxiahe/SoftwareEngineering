@@ -489,7 +489,6 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	now := time.Now().UTC()
 	session.EndTime = &now
 	session.Duration = now.Sub(session.StartTime).Seconds() // 获取充电桩信息（用于后续更新统计和队列）
-	pile, err := s.pileRepo.GetByID(pileID)
 	if err != nil {
 		log.Printf("获取充电桩失败: %v", err)
 		return
@@ -534,7 +533,7 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	}
 
 	// 从队列中移除
-	err = s.queueRepo.RemoveFromQueue(requestID)
+	err = s.queueRepo.RemoveFromQueueAndDecrementPile(requestID, pileID)
 	if err != nil {
 		log.Printf("从队列中移除失败: %v", err)
 		return
@@ -544,12 +543,6 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	err = s.pileRepo.UpdateStatus(pileID, model.PileStatusAvailable)
 	if err != nil {
 		log.Printf("更新充电桩状态失败: %v", err)
-		return
-	}
-
-	err = s.pileRepo.UpdateQueueLength(pileID, pile.QueueLength-1)
-	if err != nil {
-		log.Printf("更新充电桩队列长度失败: %v", err)
 		return
 	}
 
@@ -735,7 +728,7 @@ func (s *SchedulerService) ExecuteBatchScheduling() error {
 
 	allRequests := append(fastRequests, slowRequests...)
 	if len(allRequests) < totalSlots {
-		return fmt.Errorf("等候区车辆数量不足: 需要%d辆，实际%d辆 (基于可用充电桩: 快充%d个, 慢充%d个)",
+		return fmt.Errorf("等候区车辆数量不足: 需要%d辆，实际%d辆 (基于可用充电区: 快充%d个, 慢充%d个)",
 			totalSlots, len(allRequests), len(availableFastPiles), len(availableSlowPiles))
 	}
 	// 根据配置的调度策略排序，取前totalSlots个
@@ -849,26 +842,15 @@ func (s *SchedulerService) CompleteCharging(pileID, userID string, startTime, en
 	}
 
 	// 从队列中移除
-	err = s.queueRepo.RemoveFromQueue(session.RequestID)
+	err = s.queueRepo.RemoveFromQueueAndDecrementPile(session.RequestID, pileID)
 	if err != nil {
 		return fmt.Errorf("从队列中移除失败: %w", err)
-	}
-
-	// 获取充电桩信息
-	pile, err := s.pileRepo.GetByID(pileID)
-	if err != nil {
-		return fmt.Errorf("获取充电桩失败: %w", err)
 	}
 
 	// 更新充电桩状态和队列长度
 	err = s.pileRepo.UpdateStatus(pileID, model.PileStatusAvailable)
 	if err != nil {
 		return fmt.Errorf("更新充电桩状态失败: %w", err)
-	}
-
-	err = s.pileRepo.UpdateQueueLength(pileID, pile.QueueLength-1)
-	if err != nil {
-		return fmt.Errorf("更新充电桩队列长度失败: %w", err)
 	}
 
 	// 更新充电桩统计信息
@@ -1053,24 +1035,9 @@ func (s *SchedulerService) executeGlobalReschedulingForFault(pileType model.Pile
 
 	// 从所有充电桩队列中移除这些请求
 	for _, req := range allQueuedRequests {
-		err := s.queueRepo.RemoveFromQueue(req.ID)
+		err := s.queueRepo.RemoveFromQueueAndDecrementPile(req.ID, req.PileID)
 		if err != nil {
 			log.Printf("从队列移除请求 %s 失败: %v", req.ID, err)
-		}
-
-		// 更新充电桩队列长度
-		pile, err := s.pileRepo.GetByID(req.PileID)
-		if err != nil {
-			log.Printf("获取充电桩 %s 失败: %v", req.PileID, err)
-			continue
-		}
-		if pile.QueueLength > 0 {
-			err = s.pileRepo.UpdateQueueLength(req.PileID, pile.QueueLength-1)
-			if err != nil {
-				log.Printf("更新充电桩 %s 队列长度失败: %v", req.PileID, err)
-				continue
-			}
-			log.Printf("充电桩 %s 队列长度已更新为 %d", req.PileID, pile.QueueLength-1)
 		}
 
 		// 清除充电桩分配
