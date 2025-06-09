@@ -26,7 +26,6 @@
     "fastChargingPower": 30.0,
     "trickleChargingPower": 7.0,
     "serviceFeePerUnit": 0.8,
-    "faultReschedulingStrategy": "priority",
     "extendedSchedulingMode": "disabled"
   },
   "pricing": {

@@ -177,8 +177,8 @@ func (s *SchedulerService) executeNormalScheduling(config *model.SchedulingConfi
 		return
 	}
 	// 根据配置的调度策略排序请求
-	s.sortRequestsByStrategy(fastRequests, config.FaultRescheduling)
-	s.sortRequestsByStrategy(slowRequests, config.FaultRescheduling)
+	s.sortRequestsByStrategy(fastRequests)
+	s.sortRequestsByStrategy(slowRequests)
 
 	// 获取可用的充电桩
 	fastPiles, err := s.pileRepo.GetAvailablePiles(model.PileTypeFast, config.ChargingQueueLen)
@@ -225,21 +225,11 @@ func (s *SchedulerService) executeNormalScheduling(config *model.SchedulingConfi
 }
 
 // sortRequestsByStrategy 根据配置的调度策略对请求进行排序
-func (s *SchedulerService) sortRequestsByStrategy(requests []*model.ChargingRequest, strategy model.FaultReschedulingStrategy) {
-	if strategy == model.FaultStrategyPriority {
-		// 优先级调度：高优先级优先，同优先级按队列号(时间)排序
-		sort.Slice(requests, func(i, j int) bool {
-			if requests[i].Priority != requests[j].Priority {
-				return requests[i].Priority > requests[j].Priority
-			}
-			return requests[i].QueueNumber < requests[j].QueueNumber
-		})
-	} else {
-		// 时间顺序调度：纯粹按队列号(时间)排序
-		sort.Slice(requests, func(i, j int) bool {
-			return requests[i].QueueNumber < requests[j].QueueNumber
-		})
-	}
+func (s *SchedulerService) sortRequestsByStrategy(requests []*model.ChargingRequest) {
+	// 时间顺序调度：纯粹按队列号(时间)排序
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].QueueNumber < requests[j].QueueNumber
+	})
 }
 
 // findBestPile 找到完成充电所需时长最短的充电桩
@@ -775,7 +765,7 @@ func (s *SchedulerService) ExecuteBatchScheduling() error {
 			totalSlots, len(allRequests), len(availableFastPiles), len(availableSlowPiles))
 	}
 	// 根据配置的调度策略排序，取前totalSlots个
-	s.sortRequestsByStrategy(allRequests, config.FaultRescheduling)
+	s.sortRequestsByStrategy(allRequests)
 	selectedRequests := allRequests[:totalSlots]
 
 	// 计算最优分配方案（忽略充电模式限制）
