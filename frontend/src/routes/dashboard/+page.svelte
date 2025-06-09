@@ -370,20 +370,20 @@
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<span>峰时 (10:00-15:00, 18:00-21:00)</span>
-						<span class="font-medium">1.0元/度</span>
+						<span class="text-xl font-bold text-primary">1.0元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
 						<span>平时 (7:00-10:00, 15:00-18:00, 21:00-23:00)</span>
-						<span class="font-medium">0.7元/度</span>
+						<span class="text-xl font-bold text-secondary">0.7元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
 						<span>谷时 (23:00-次日7:00)</span>
-						<span class="font-medium">0.4元/度</span>
+						<span class="text-xl font-bold text-primary">0.4元/度</span>
 					</div>
 					<div class="mt-2 border-t pt-2">
 						<div class="flex items-center justify-between">
 							<span>服务费</span>
-							<span class="font-medium">0.8元/度</span>
+							<span class="text-xl font-bold text-primary">0.8元/度</span>
 						</div>
 					</div>
 				</div>

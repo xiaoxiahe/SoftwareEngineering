@@ -48,9 +48,9 @@
   };
 </script>
 
-<div class="flex min-h-svh bg-gradient-to-r from-blue-50 to-blue-100">
+<div class="flex min-h-svh bg-cover bg-center" style="background-image: url('/background.png');">
   <main class="container mx-auto flex flex-col items-center justify-center gap-6 py-16">
-    <div class="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+    <div class="w-full max-w-md rounded-lg bg-white/60 p-8 shadow-lg backdrop-blur-sm">
       <div class="mb-6 text-center">
         <h1 class="text-2xl font-bold text-blue-700">登录</h1>
         <p class="text-gray-500">登录您的充电系统账户</p>
