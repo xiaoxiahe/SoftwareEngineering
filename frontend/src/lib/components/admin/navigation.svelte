@@ -25,6 +25,23 @@
 	};
 
 	export let activeItem: string = '';
+	import { onMount } from 'svelte';
+
+	// 切换暗黑/明亮模式
+	function toggleDarkMode() {
+		const html = document.documentElement;
+		const isDark = html.classList.toggle('dark');
+		localStorage.setItem('theme', isDark ? 'dark' : 'light');
+	}
+
+	// 页面加载时应用本地设置
+	onMount(() => {
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme === 'dark') {
+			document.documentElement.classList.add('dark');
+		}
+	});
+
 </script>
 
 <nav class="bg-background border-b px-4 py-2 md:px-6">
