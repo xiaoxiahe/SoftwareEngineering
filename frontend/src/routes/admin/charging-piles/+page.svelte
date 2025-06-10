@@ -65,8 +65,8 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">充电桩管理</h2>
-		<p class="text-muted-foreground">管理和监控充电桩状态、队列和故障处理</p>
+		<h2 class="text-3xl font-bold tracking-tight">🔌 充电桩管理</h2>
+		<p class="text-muted-foreground">📊 管理和监控充电桩状态、队列和故障处理</p>
 	</div>
 
 	{#if error}
@@ -83,8 +83,8 @@
 
 	<Tabs value="fast">
 		<TabsList>
-			<TabsTrigger value="fast">快充桩</TabsTrigger>
-			<TabsTrigger value="slow">慢充桩</TabsTrigger>
+			<TabsTrigger value="fast">⚡快充桩</TabsTrigger>
+			<TabsTrigger value="slow">🐢慢充桩</TabsTrigger>
 		</TabsList>
 
 		<TabsContent value="fast">
@@ -110,7 +110,10 @@
 														? 'border-red-200 bg-red-100 text-red-800'
 														: 'border-orange-200 bg-orange-100 text-orange-800'}
 										>
-											{status.text}
+											{pile.status === 'available' && '✅ 可用'}
+											{pile.status === 'occupied' && '🔄 占用中'}
+											{pile.status === 'fault' && '⚠️ 故障'}
+											{pile.status === 'offline' && '🔌 离线'}
 										</Badge>
 									{/if}
 								</div>
@@ -125,7 +128,7 @@
 											class="w-full"
 											onclick={() => controlChargingPile(pile.pileId, 'start')}
 										>
-											启动充电桩
+											▶️启动充电桩
 										</Button>
 									{:else}
 										<Button
@@ -135,7 +138,7 @@
 											disabled={pile.status !== 'available'}
 											onclick={() => controlChargingPile(pile.pileId, 'stop')}
 										>
-											关闭
+											⏹️关闭
 										</Button>
 									{/if}
 								</div>
@@ -188,7 +191,7 @@
 											class="w-full"
 											onclick={() => controlChargingPile(pile.pileId, 'start')}
 										>
-											启动充电桩
+											▶️启动充电桩
 										</Button>
 									{:else}
 										<Button
@@ -198,7 +201,7 @@
 											disabled={pile.status !== 'available'}
 											onclick={() => controlChargingPile(pile.pileId, 'stop')}
 										>
-											关闭
+											⏹️关闭
 										</Button>
 									{/if}
 								</div>

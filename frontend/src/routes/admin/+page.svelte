@@ -109,7 +109,7 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">管理控制台</h2>
+		<h2 class="text-3xl font-bold tracking-tight">⚡ 管理控制台</h2>
 		<p class="text-muted-foreground">系统概览和充电桩状态监控</p>
 	</div>
 
@@ -127,6 +127,7 @@
 			<Card>
 				<CardHeader class="flex flex-row items-center justify-between pb-2">
 					<CardTitle class="text-sm font-medium">今日充电次数</CardTitle>
+					
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="16"
@@ -207,7 +208,7 @@
 								d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"
 							/><path d="m14 12-4 6" /><path d="m10 12 4-6" /></svg
 						>
-						充电桩详细管理
+						🔌 充电桩详细管理
 					</Button>
 					<Button
 						variant="outline"
@@ -234,7 +235,7 @@
 								d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"
 							/></svg
 						>
-						排队调度管理
+						⏳ 排队调度管理
 					</Button>
 					<Button
 						variant="outline"
@@ -256,7 +257,7 @@
 								d="M8 17v-3"
 							/></svg
 						>
-						查看统计报表
+						📊 查看统计报表
 					</Button>
 				</CardContent>
 			</Card>
@@ -274,7 +275,7 @@
 								<p class="text-muted-foreground">
 									当前时间: {new Date().toLocaleTimeString('zh-CN')}
 								</p>
-								<p class="mt-1 text-lg font-medium">系统正常运行中</p>
+								<p class="mt-1 text-lg font-medium">系统正常运行中 ✅</p>
 								<p class="text-muted-foreground mt-1 text-xs">
 									电价类型: {(new Date().getHours() >= 10 && new Date().getHours() < 15) ||
 									(new Date().getHours() >= 18 && new Date().getHours() < 21)

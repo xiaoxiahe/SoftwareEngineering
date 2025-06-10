@@ -20,7 +20,7 @@
 			const response = await api.chargingPiles.getQueueVehicles();
 			pileQueueData = response as PileQueueResponse;
 		} catch (err: any) {
-			error = err.message || '获取队列数据失败';
+			error = err.message || '❌ 获取队列数据失败';
 			console.error('获取队列数据错误:', err);
 		} finally {
 			isLoading = false;
@@ -74,9 +74,9 @@
 	<div class="flex flex-col gap-6">
 		<!-- 标题和操作按钮 -->
 		<div class="flex items-center justify-between">
-			<h1 class="text-3xl font-bold tracking-tight">充电桩队列车辆信息</h1>
+			<h1 class="text-3xl font-bold tracking-tight">🚗 充电桩队列车辆信息</h1>
 			<Button onclick={handleRefresh} disabled={isLoading} variant="default">
-				{isLoading ? '加载中...' : '刷新数据'}
+				{isLoading ? '🔄加载中...' : '🔁刷新数据'}
 			</Button>
 		</div>
 		<!-- 错误信息显示 -->
@@ -98,7 +98,7 @@
 		{:else if !pileQueueData || pileQueueData.piles.length === 0}
 			<Card.Root>
 				<Card.Content class="p-6">
-					<div class="text-muted-foreground text-center">没有找到匹配的充电桩队列数据</div>
+					<div class="text-muted-foreground text-center">📭 没有找到匹配的充电桩队列数据</div>
 				</Card.Content>
 			</Card.Root>
 		{:else}
@@ -113,10 +113,14 @@
 								</Card.Title>
 								<div class="flex items-center gap-2">
 									<Badge variant={pile.type === 'fast' ? 'default' : 'secondary'}>
-										{pile.type === 'fast' ? '快充' : '慢充'}
+										{pile.type === 'fast' ? '⚡快充' : '🐢慢充'}
 									</Badge>
 									<Badge variant={getStatusVariant(pile.status)}>
-										{getStatusText(pile.status)}
+										{#if pile.status === 'available'}✅ 空闲{/if}
+										{#if pile.status === 'occupied'}🔄 使用中{/if}
+										{#if pile.status === 'fault'}⚠️ 故障{/if}
+										{#if pile.status === 'maintenance'}🛠️ 维护中{/if}
+										{#if pile.status === 'offline'}🔌 离线{/if}
 									</Badge>
 								</div>
 							</div>
@@ -173,7 +177,7 @@
 															</div>
 														</Table.Cell>
 														<Table.Cell>
-															{formatDuration(vehicle.queueTime)}
+															⏱ {formatDuration(vehicle.queueTime)}
 														</Table.Cell>
 													</Table.Row>
 												{/each}

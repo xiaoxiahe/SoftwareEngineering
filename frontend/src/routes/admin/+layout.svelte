@@ -40,7 +40,7 @@
 	<!-- 暗黑模式切换按钮 -->
 	<button
 		on:click={toggleDarkMode}
-		class="absolute top-4 right-20 px-1 py-0 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition"
+		class="absolute top-4 right-50 px-1 py-0 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition"
 	>
 		🌞/🌙
 	</button>

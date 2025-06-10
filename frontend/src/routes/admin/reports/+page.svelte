@@ -71,7 +71,7 @@
 </script>
 
 <div class="container mx-auto space-y-8 py-6">
-	<h1 class="text-3xl font-bold">充电桩使用报表</h1>
+	<h1 class="text-3xl font-bold">📊 充电桩使用报表</h1>
 
 	<Card.Root class="mb-6">
 		<Card.Header>
@@ -151,7 +151,11 @@
 
 				<!-- 刷新按钮 -->
 				<Button variant="default" onclick={fetchPileReports} disabled={isLoading}>
-					{isLoading ? '加载中...' : '刷新数据'}
+					{#if isLoading}
+						<span class="animate-spin mr-2">🔄</span> 加载中...
+					{:else}
+						🔁 刷新数据
+					{/if}
 				</Button>
 			</div>
 		</Card.Content>
@@ -175,10 +179,15 @@
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			{#if isLoading}
-				<div class="flex h-24 items-center justify-center">正在加载数据...</div>
+		{#if isLoading}
+			<div class="flex h-24 items-center justify-center gap-2 text-muted-foreground">
+				<span class="animate-spin text-xl">🔄</span>
+				正在加载数据...
+			</div>
 			{:else if pileStatistics.length === 0}
-				<div class="text-muted-foreground py-6 text-center">此时间段内没有数据</div>
+			<div class="text-muted-foreground py-6 text-center text-lg">
+				📭 此时间段内没有统计数据
+			</div>
 			{:else}
 				<PileUsageTable data={pileStatistics} />
 			{/if}
