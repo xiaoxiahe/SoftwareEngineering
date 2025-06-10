@@ -110,10 +110,11 @@
 														? 'border-red-200 bg-red-100 text-red-800'
 														: 'border-orange-200 bg-orange-100 text-orange-800'}
 										>
-											{pile.status === 'available' && '✅ 可用'}
-											{pile.status === 'occupied' && '🔄 占用中'}
-											{pile.status === 'fault' && '⚠️ 故障'}
-											{pile.status === 'offline' && '🔌 离线'}
+											{#if pile.status === 'available'}✅ 空闲{/if}
+											{#if pile.status === 'occupied'}🔄 使用中{/if}
+											{#if pile.status === 'fault'}⚠️ 故障{/if}
+											{#if pile.status === 'maintenance'}🛠️ 维护中{/if}
+											{#if pile.status === 'offline'}🔌 离线{/if}
 										</Badge>
 									{/if}
 								</div>
