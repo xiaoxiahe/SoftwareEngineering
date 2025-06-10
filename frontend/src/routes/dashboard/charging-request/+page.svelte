@@ -175,7 +175,7 @@
 </script>
 
 <svelte:head>
-	<title>{isModifying ? '修改' : '新建'}充电请求 - 智能充电桩调度计费系统</title>
+	<title>{isModifying ? '修改' : '新建'}⚡ 充电请求 - 智能充电桩调度计费系统</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -189,28 +189,28 @@
 	<div class="grid gap-6 md:grid-cols-2">
 		<Card>
 			<CardHeader>
-				<CardTitle>充电请求信息</CardTitle>
+				<CardTitle>🔋 充电请求信息</CardTitle>
 				<CardDescription>请填写您的充电需求</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{#if error}
 					<Alert variant="destructive" class="mb-6">
-						<AlertTitle>错误</AlertTitle>
+						<AlertTitle>❌ 错误</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				{/if}
 
 				{#if success}
 					<Alert variant="default" class="mb-6 border-green-200 bg-green-50 text-green-700">
-						<AlertTitle>成功</AlertTitle>
+						<AlertTitle>✅ 成功</AlertTitle>
 						<AlertDescription>{success}</AlertDescription>
 					</Alert>
 				{/if}
 
 				{#if isModifying && $chargingRequest}
 					<div class="mb-6 rounded-md bg-blue-50 p-4 text-sm text-blue-700">
-						<p>您正在修改排队号为 <strong>{$chargingRequest.queueNumber}</strong> 的充电请求</p>
-						<p class="mt-2">注意：修改充电模式会重新生成排队号，您将排到对应模式队列的最后一位</p>
+						<p>✏️ 您正在修改排队号为 <strong>{$chargingRequest.queueNumber}</strong> 的充电请求</p>
+						<p class="mt-2">⚠️ 注意：修改充电模式会重新生成排队号，您将排到对应模式队列的最后一位</p>
 					</div>
 				{/if}
 
@@ -223,11 +223,11 @@
 						>
 							<div class="flex items-center space-x-2">
 								<RadioGroupItem value="fast" id="fast" />
-								<Label for="fast" class="cursor-pointer">快充 (30度/小时)</Label>
+								<Label for="fast" class="cursor-pointer">🚀 快充 (30度/小时)</Label>
 							</div>
 							<div class="flex items-center space-x-2">
 								<RadioGroupItem value="slow" id="slow" />
-								<Label for="slow" class="cursor-pointer">慢充 (7度/小时)</Label>
+								<Label for="slow" class="cursor-pointer">🐢 慢充 (7度/小时)</Label>
 							</div>
 						</RadioGroup>
 					</div>
@@ -245,7 +245,7 @@
 						/>
 						{#if $auth.user?.vehicleInfo?.batteryCapacity}
 							<p class="text-muted-foreground text-xs">
-								最大可充: {$auth.user.vehicleInfo.batteryCapacity} 度
+								⚠️ 最大可充: {$auth.user.vehicleInfo.batteryCapacity} 度
 							</p>
 						{/if}
 					</div>
@@ -280,13 +280,13 @@
 
 		<Card>
 			<CardHeader>
-				<CardTitle>费用预估</CardTitle>
+				<CardTitle>🧾 费用预估</CardTitle>
 				<CardDescription>根据您的请求计算预估费用</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<div class="space-y-4">
 					<div>
-						<p class="text-sm font-medium">充电信息</p>
+						<p class="text-sm font-medium">🔌 充电信息</p>
 						<div class="mt-2 grid grid-cols-2 gap-2">
 							<div>
 								<p class="text-muted-foreground text-xs">充电模式</p>
@@ -295,21 +295,21 @@
 								</p>
 							</div>
 							<div>
-								<p class="text-muted-foreground text-xs">充电电量</p>
+								<p class="text-muted-foreground text-xs">⚡ 充电电量</p>
 								<p class="font-medium">{requestedCapacity.toFixed(1)} 度</p>
 							</div>
 							<div>
-								<p class="text-muted-foreground text-xs">估计充电时长</p>
+								<p class="text-muted-foreground text-xs">🕒 估计充电时长</p>
 								<p class="font-medium">{estimatedChargingTime.toFixed(1)} 小时</p>
 							</div>
 							<div>
 								<p class="text-muted-foreground text-xs">电价类型</p>
 								<p class="font-medium">
 									{estimatedFee.priceType === 'peak'
-										? '峰时'
+										? '🌞 峰时'
 										: estimatedFee.priceType === 'normal'
-											? '平时'
-											: '谷时'}
+											? '🌤️ 平时'
+											: '🌙 谷时'}
 									({getElectricityPrice(estimatedFee.priceType).toFixed(1)}元/度)
 								</p>
 							</div>
@@ -331,15 +331,15 @@
 							</div>
 							<Separator />
 							<div class="flex items-center justify-between font-bold">
-								<span>总计</span>
+								<span>💡 总计</span>
 								<span>{estimatedFee.totalFee.toFixed(2)}元</span>
 							</div>
 						</div>
 					</div>
 
 					<div class="bg-muted rounded-md p-4 text-sm">
-						<p>注意: 此为预估费用，实际费用将根据充电开始时的电价计算。</p>
-						<p class="mt-1">峰谷时段电价不同，请参考系统价格信息。</p>
+						<p>ℹ️ 注意: 此为预估费用，实际费用将根据充电开始时的电价计算。</p>
+						<p class="mt-1">📊 峰谷时段电价不同，请参考系统价格信息。</p>
 					</div>
 				</div>
 			</CardContent>

@@ -27,7 +27,7 @@
 	export let activeItem: string = '';
 </script>
 
-<nav class="bg-background border-b px-4 py-2 md:px-6">
+<nav class="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b shadow-sm px-4 py-2 md:px-6">
 	<div class="container flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<div class="block md:hidden">

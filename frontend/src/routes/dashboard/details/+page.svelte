@@ -82,8 +82,8 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">充电详单</h2>
-		<p class="text-muted-foreground">查看您的充电记录和消费情况</p>
+		<h2 class="text-3xl font-bold tracking-tight">📄 充电详单</h2>
+		<p class="text-muted-foreground">🔍 查看您的充电记录和消费情况</p>
 	</div>
 
 	<!-- 过滤器 -->
@@ -119,7 +119,7 @@
 				</div>
 
 				<div class="flex items-end">
-					<Button type="submit" class="w-full">筛选</Button>
+					<Button type="submit" class="w-full">🪄 筛选</Button>
 				</div>
 				<div class="flex items-end">
 					<Button
@@ -135,7 +135,7 @@
 							handleFilterChange();
 						}}
 					>
-						重置
+						🔁重置
 					</Button>
 				</div>
 			</form>
@@ -145,7 +145,7 @@
 	<!-- 详单列表 -->
 	<Card>
 		<CardHeader>
-			<CardTitle>充电详单记录</CardTitle>
+			<CardTitle>📋 充电详单记录</CardTitle>
 			<CardDescription>
 				{startDate && endDate
 					? `${formatCalendarDateToLocale(startDate)} - ${formatCalendarDateToLocale(endDate)}`
@@ -183,13 +183,13 @@
 			{:else}
 				<div class="flex h-40 items-center justify-center">
 					<div class="text-center">
-						<p class="text-muted-foreground">没有找到充电详单</p>
+						<p class="text-muted-foreground">📭 没有找到充电详单</p>
 						<Button
 							variant="outline"
 							class="mt-4"
 							onclick={() => goto('/dashboard/charging-request')}
 						>
-							创建充电请求
+							➕ 创建充电请求
 						</Button>
 					</div>
 				</div>

@@ -206,7 +206,7 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">欢迎, {$auth.user?.username || '用户'}</h2>
+		<h2 class="text-3xl font-bold tracking-tight">👋 欢迎, {$auth.user?.username || '用户'}</h2>
 		<p class="text-muted-foreground">查看您的充电状态和系统信息</p>
 	</div>
 
@@ -222,7 +222,7 @@
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
 			<Card>
 				<CardHeader>
-					<CardTitle>充电状态</CardTitle>
+					<CardTitle>⚡ 充电状态</CardTitle>
 					<CardDescription>
 						当前请求编号: {activeRequest.queueNumber}
 					</CardDescription>
@@ -231,14 +231,18 @@
 					<div class="mb-4 flex items-center justify-between">
 						<span class="text-sm font-medium">状态</span>
 						<span class="text-sm font-bold {getStatusColor(activeRequest.status)}">
-							{getStatusText(activeRequest.status)}
+							{#if activeRequest.status === 'charging'}⚡ 正在充电
+							{:else if activeRequest.status === 'waiting'}⏳ 等待中
+							{:else if activeRequest.status === 'queued'}📋 排队中
+							{:else}❔ 未知状态
+							{/if}
 						</span>
 					</div>
 
 					{#if activeRequest.status === 'charging'}
 						<div class="space-y-2">
 							<div class="flex items-center justify-between">
-								<span class="text-sm">充电进度</span>
+								<span class="text-sm">🔌 充电进度</span>
 								<span class="text-sm"
 									>{activeRequest.actualCapacity?.toFixed(1) ||
 										0}/{activeRequest.requestedCapacity?.toFixed(1) || 0} 度</span
@@ -269,13 +273,13 @@
 					{#if showQueueInfo && userPosition}
 						<div class="space-y-4">
 							<div>
-								<p class="text-muted-foreground text-xs">当前排队位置</p>
+								<p class="text-muted-foreground text-xs">📍 当前排队位置</p>
 								<p class="text-2xl font-bold">{userPosition.position}</p>
 							</div>
 
 							<div class="grid grid-cols-2 gap-2">
 								<div>
-									<p class="text-muted-foreground text-xs">前方车辆</p>
+									<p class="text-muted-foreground text-xs">🚙 前方车辆</p>
 									<p class="font-medium">{userPosition.carsAhead} 辆</p>
 								</div>
 								<div>
@@ -307,8 +311,8 @@
 
 			<Card>
 				<CardHeader>
-					<CardTitle>快捷操作</CardTitle>
-					<CardDescription>请求充电或查看信息</CardDescription>
+					<CardTitle>⚙️ 快捷操作</CardTitle>
+					<CardDescription>📲 请求充电或查看信息</CardDescription>
 				</CardHeader>
 				<CardContent class="flex flex-col gap-2">
 					<Button
@@ -316,10 +320,10 @@
 						class="w-full"
 						onclick={() => goto('/dashboard/charging-request')}
 					>
-						{activeRequest ? '修改充电请求' : '新充电请求'}
+						{activeRequest ? '🔄 修改充电请求' : '🆕 新充电请求'}
 					</Button>
 					<Button variant="outline" class="w-full" onclick={() => goto('/dashboard/details')}>
-						查看充电详单
+						📄 查看充电详单
 					</Button>
 				</CardContent>
 			</Card>
@@ -328,20 +332,20 @@
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
 			<Card>
 				<CardHeader>
-					<CardTitle>无活动充电请求</CardTitle>
+					<CardTitle>🫥 无活动充电请求</CardTitle>
 					<CardDescription>您当前没有活动的充电请求</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<p class="text-muted-foreground">提交新的充电请求开始充电</p>
+					<p class="text-muted-foreground">请提交新的充电请求开始充电</p>
 				</CardContent>
 				<CardFooter>
-					<Button onclick={() => goto('/dashboard/charging-request')}>新充电请求</Button>
+					<Button onclick={() => goto('/dashboard/charging-request')}>➕新充电请求</Button>
 				</CardFooter>
 			</Card>
 
 			<Card>
 				<CardHeader>
-					<CardTitle>快捷操作</CardTitle>
+					<CardTitle>⚙️快捷操作</CardTitle>
 					<CardDescription>请求充电或查看信息</CardDescription>
 				</CardHeader>
 				<CardContent class="flex flex-col gap-2">
@@ -350,10 +354,10 @@
 						class="w-full"
 						onclick={() => goto('/dashboard/charging-request')}
 					>
-						新充电请求
+						➕ 新充电请求
 					</Button>
 					<Button variant="outline" class="w-full" onclick={() => goto('/dashboard/details')}>
-						查看充电详单
+						📄 查看充电详单
 					</Button>
 				</CardContent>
 			</Card>
@@ -363,21 +367,21 @@
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
 		<Card>
 			<CardHeader>
-				<CardTitle>充电价格</CardTitle>
+				<CardTitle>💰 充电价格</CardTitle>
 				<CardDescription>当前时段: {currentTimePeriod()}</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
-						<span>峰时 (10:00-15:00, 18:00-21:00)</span>
+						<span>🌞 峰时 (10:00-15:00, 18:00-21:00)</span>
 						<span class="text-xl font-bold text-primary">1.0元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
-						<span>平时 (7:00-10:00, 15:00-18:00, 21:00-23:00)</span>
+						<span>🌤️ 平时 (7:00-10:00, 15:00-18:00, 21:00-23:00)</span>
 						<span class="text-xl font-bold text-secondary">0.7元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
-						<span>谷时 (23:00-次日7:00)</span>
+						<span>🌙 谷时 (23:00-次日7:00)</span>
 						<span class="text-xl font-bold text-primary">0.4元/度</span>
 					</div>
 					<div class="mt-2 border-t pt-2">
@@ -396,16 +400,16 @@
 <AlertDialog bind:open={showCancelDialog}>
 	<AlertDialogContent>
 		<AlertDialogHeader>
-			<AlertDialogTitle>确认取消充电请求</AlertDialogTitle>
+			<AlertDialogTitle>⚠️ 确认取消充电请求</AlertDialogTitle>
 			<AlertDialogDescription>
-				您确定要取消当前的充电请求吗？此操作无法撤销。
+				您确定要取消当前的充电请求吗？此操作无法撤销 ❌。
 				{#if activeRequest}
 					<div class="bg-muted mt-3 rounded-md p-3">
 						<p class="text-sm"><strong>请求编号:</strong> {activeRequest.queueNumber}</p>
 						<p class="text-sm"><strong>当前状态:</strong> {getStatusText(activeRequest.status)}</p>
 						{#if activeRequest.requestedCapacity}
 							<p class="text-sm">
-								<strong>请求充电量:</strong>
+								<strong>🔋 请求充电量:</strong>
 								{activeRequest.requestedCapacity.toFixed(1)} 度
 							</p>
 						{/if}
@@ -414,12 +418,12 @@
 			</AlertDialogDescription>
 		</AlertDialogHeader>
 		<AlertDialogFooter>
-			<AlertDialogCancel onclick={() => (showCancelDialog = false)}>保留请求</AlertDialogCancel>
+			<AlertDialogCancel onclick={() => (showCancelDialog = false)}>🙅‍♂️ 保留请求</AlertDialogCancel>
 			<AlertDialogAction
 				onclick={cancelRequest}
 				class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 			>
-				确认取消
+				🗑️ 确认取消
 			</AlertDialogAction>
 		</AlertDialogFooter>
 	</AlertDialogContent>

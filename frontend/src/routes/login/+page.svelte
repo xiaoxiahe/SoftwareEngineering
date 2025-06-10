@@ -14,17 +14,13 @@
   let errorMessage = '';
 
   onMount(() => {
-    // 如果已经登录，则重定向到对应页面
     if ($auth.isAuthenticated) {
-      if ($auth.userType === 'admin') {
-        goto('/admin');
-      } else {
-        goto('/dashboard');
-      }
+      goto($auth.userType === 'admin' ? '/admin' : '/dashboard');
     }
   });
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: Event) => {
+    event.preventDefault();
     if (!username || !password) {
       errorMessage = '请填写用户名和密码';
       return;
@@ -35,7 +31,6 @@
 
     try {
       const result = await login(username, password);
-
       if (!result.success) {
         errorMessage = result.error || '登录失败，请检查用户名和密码';
       }
@@ -48,39 +43,54 @@
   };
 </script>
 
-<div class="flex min-h-svh bg-cover bg-center" style="background-image: url('/background.png');">
-  <main class="container mx-auto flex flex-col items-center justify-center gap-6 py-16">
-    <div class="w-full max-w-md rounded-lg bg-white/60 p-8 shadow-lg backdrop-blur-sm">
-      <div class="mb-6 text-center">
-        <h1 class="text-2xl font-bold text-blue-700">登录</h1>
-        <p class="text-gray-500">登录您的充电系统账户</p>
+<!-- 登录背景 -->
+<div class="flex min-h-svh items-center justify-center bg-cover bg-center px-4 py-16" style="background-image: url('/background.png');">
+  <main class="w-full max-w-md rounded-2xl bg-white/60 backdrop-blur-md shadow-xl p-8">
+    <div class="mb-6 text-center space-y-1">
+      <div class="text-4xl">🔐</div>
+      <h1 class="text-2xl font-extrabold text-blue-700 tracking-tight">欢迎登录</h1>
+      <p class="text-gray-600 text-sm">登录您的充电系统账户</p>
+    </div>
+
+    {#if errorMessage}
+      <Alert variant="destructive" class="mb-4 border-l-4 border-red-500">
+        <AlertDescription class="text-red-600">{errorMessage}</AlertDescription>
+      </Alert>
+    {/if}
+
+    <form on:submit={handleSubmit} class="space-y-5">
+      <div class="space-y-1">
+        <Label for="username" class="text-sm font-medium text-gray-700">用户名</Label>
+        <Input
+          id="username"
+          type="text"
+          bind:value={username}
+          placeholder="请输入用户名"
+          disabled={isLoading}
+          class="focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
       </div>
 
-      {#if errorMessage}
-        <Alert variant="destructive" class="mb-4">
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      {/if}
+      <div class="space-y-1">
+        <Label for="password" class="text-sm font-medium text-gray-700">密码</Label>
+        <Input
+          id="password"
+          type="password"
+          bind:value={password}
+          placeholder="请输入密码"
+          disabled={isLoading}
+          class="focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
 
-      <form onsubmit={handleSubmit} class="space-y-4">
-        <div class="space-y-2">
-          <Label for="username">用户名</Label>
-          <Input id="username" type="text" bind:value={username} placeholder="请输入用户名" disabled={isLoading} />
-        </div>
+      <Button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 transition" disabled={isLoading}>
+        {isLoading ? '登录中...' : '登录'}
+      </Button>
 
-        <div class="space-y-2">
-          <Label for="password">密码</Label>
-          <Input id="password" type="password" bind:value={password} placeholder="请输入密码" disabled={isLoading} />
-        </div>
-
-        <Button type="submit" class="w-full" disabled={isLoading}>
-          {isLoading ? '登录中...' : '登录'}
-        </Button>
-
-        <p class="text-center text-sm">
-          没有账号？<a href="/register" class="text-blue-600 hover:underline">立即注册</a>
-        </p>
-      </form>
-    </div>
+      <p class="text-center text-sm text-gray-600">
+        没有账号？
+        <a href="/register" class="text-blue-600 hover:underline font-medium">立即注册</a>
+      </p>
+    </form>
   </main>
 </div>
