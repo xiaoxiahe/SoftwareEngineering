@@ -364,7 +364,7 @@
 		</div>
 	{/if}
 
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+	<div class="grid gap-4 md:grid-cols-1 lg:grid-cols-1 ">
 		<Card>
 			<CardHeader>
 				<CardTitle>💰 充电价格</CardTitle>
