@@ -21,7 +21,7 @@
   "charging": {
     "fastChargingPileNum": 2,
     "trickleChargingPileNum": 3,
-    "waitingAreaSize": 6,
+    "waitingAreaSize": 10,
     "chargingQueueLen": 2,
     "fastChargingPower": 30.0,
     "trickleChargingPower": 7.0,

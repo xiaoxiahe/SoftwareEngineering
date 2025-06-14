@@ -20,5 +20,7 @@ VALUES
     ('66666666-6666-6666-6666-666666666666', 'u6', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV006', 85.0),
     ('77777777-7777-7777-7777-777777777777', 'u7', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV007', 90.0),
     ('88888888-8888-8888-8888-888888888888', 'u8', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV008', 95.0),
-    ('99999999-9999-9999-9999-999999999999', 'u9', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV009', 100.0)
+    ('99999999-9999-9999-9999-999999999999', 'u9', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV009', 100.0),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'u10', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV010', 110.0),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'u11', '$2a$10$nEFHmT4WLwKa8DB5sEQgv.3fU/4gr.931HiWw6JlnhiaSYBIuH/My', 'user', '京AUV011', 115.0)
 ON CONFLICT (id) DO NOTHING;

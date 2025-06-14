@@ -703,9 +703,6 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 
 // ExecuteBatchScheduling 执行批量调度总充电时长最短
 func (s *SchedulerService) ExecuteBatchScheduling() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	log.Printf("执行批量调度")
 
 	// 获取系统配置
