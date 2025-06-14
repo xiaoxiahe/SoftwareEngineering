@@ -179,3 +179,19 @@ export interface PileQueueInfo {
 export interface PileQueueResponse {
   piles: PileQueueInfo[];
 }
+
+// 等待区车辆信息
+export interface WaitingVehicle {
+  licensePlate: string;
+  requestType: string;
+  requestedCapacity: number;
+  queueNumber: number;
+  createdAt: string;
+}
+
+export interface WaitingVehiclesResponse {
+  waitingVehicles: WaitingVehicle[];
+  totalCount: number;
+  fastCount: number;
+  slowCount: number;
+}

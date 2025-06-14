@@ -101,14 +101,17 @@ export const api = {
       return fetchApi(`/charging/requests/user/${userId}?${queryParams.toString()}`);
     },
   },
-  
-  // 队列相关
+    // 队列相关
   queue: {
     getStatus: (mode?: 'fast' | 'slow' | 'all') =>
       fetchApi(`/queue/status${mode ? `?mode=${mode}` : ''}`),
     
     getUserPosition: (userId: string) =>
       fetchApi(`/queue/position/${userId}`),
+    
+    // 获取等待区车辆信息
+    getWaitingVehicles: () =>
+      fetchApi('/queue/waiting-vehicles'),
   },
   
   // 充电桩相关

@@ -41,7 +41,6 @@
 			document.documentElement.classList.add('dark');
 		}
 	});
-
 </script>
 
 <nav class="bg-background border-b px-4 py-2 md:px-6">
@@ -133,7 +132,6 @@
 								>
 								充电桩管理
 							</a>
-
 							<a
 								href="/admin/queue"
 								class="text-muted-foreground hover:text-primary flex items-center gap-2 rounded-md px-3 py-2 transition-all {activeItem ===
@@ -162,6 +160,31 @@
 									/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" /></svg
 								>
 								排队调度
+							</a>
+
+							<a
+								href="/admin/waiting-area"
+								class="text-muted-foreground hover:text-primary flex items-center gap-2 rounded-md px-3 py-2 transition-all {activeItem ===
+								'waiting-area'
+									? 'bg-muted text-primary font-medium'
+									: ''}"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="lucide lucide-car"
+									><path d="M8 19h8" /><path d="M6 19V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v11" /><path
+										d="M10 6V2"
+									/><path d="M14 6V2" /></svg
+								>
+								等待区管理
 							</a>
 
 							<a
@@ -238,6 +261,15 @@
 						: 'text-muted-foreground'}"
 				>
 					排队调度
+				</a>
+				<a
+					href="/admin/waiting-area"
+					class="hover:text-primary text-sm font-medium transition-colors {activeItem ===
+					'waiting-area'
+						? 'text-primary'
+						: 'text-muted-foreground'}"
+				>
+					等待区管理
 				</a>
 				<a
 					href="/admin/reports"

@@ -183,16 +183,12 @@
 																<div class="font-medium">
 																	{vehicle.currentChargedCapacity} kWh
 																</div>
-																{#if vehicle.currentChargedCapacity > 0}
-																	<div class="text-muted-foreground text-xs">
-																		({Math.round(
-																			(vehicle.currentChargedCapacity / vehicle.batteryCapacity) *
-																				100
-																		)}%)
-																	</div>
-																{:else}
-																	<div class="text-muted-foreground text-xs">未开始</div>
-																{/if}
+																<div class="text-muted-foreground text-xs">
+																	({Math.round(
+																		(vehicle.currentChargedCapacity / vehicle.requestedCapacity) *
+																			100
+																	)}%)
+																</div>
 															</div>
 														</Table.Cell>
 														<Table.Cell>
@@ -200,11 +196,6 @@
 																<div class="font-medium">
 																	¥{vehicle.currentFee.toFixed(2)}
 																</div>
-																{#if vehicle.currentFee > 0}
-																	<div class="text-muted-foreground text-xs">已产生费用</div>
-																{:else}
-																	<div class="text-muted-foreground text-xs">无费用</div>
-																{/if}
 															</div>
 														</Table.Cell>
 														<Table.Cell>

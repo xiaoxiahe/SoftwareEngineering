@@ -2,7 +2,6 @@
 	import Navigation from '$lib/components/admin/navigation.svelte';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-
 	// 计算当前激活的导航项
 	$: {
 		let path = page.url.pathname;
@@ -12,6 +11,8 @@
 			activeItem = 'charging-piles';
 		} else if (path.includes('/queue')) {
 			activeItem = 'queue';
+		} else if (path.includes('/waiting-area')) {
+			activeItem = 'waiting-area';
 		} else if (path.includes('/reports')) {
 			activeItem = 'reports';
 		} else if (path.includes('/settings')) {
@@ -24,9 +25,9 @@
 	onMount(() => {
 		const saved = localStorage.getItem('theme');
 		if (saved === 'dark') {
-		document.documentElement.classList.add('dark');
+			document.documentElement.classList.add('dark');
 		} else {
-		document.documentElement.classList.remove('dark');
+			document.documentElement.classList.remove('dark');
 		}
 	});
 
@@ -40,7 +41,7 @@
 	<!-- 暗黑模式切换按钮 -->
 	<button
 		on:click={toggleDarkMode}
-		class="absolute top-4 right-50 px-1 py-0 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition"
+		class="bg-secondary text-secondary-foreground hover:bg-secondary/80 absolute top-4 right-50 rounded-md px-1 py-0 text-sm transition"
 	>
 		🌞/🌙
 	</button>
