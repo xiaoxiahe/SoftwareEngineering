@@ -771,6 +771,11 @@ func (s *SchedulerService) ExecuteBatchScheduling() error {
 func (s *SchedulerService) calculateGlobalOptimalAssignment(requests []*model.ChargingRequest, piles []*model.ChargingPile, maxQueueLen int) map[uuid.UUID]string {
 	assignment := make(map[uuid.UUID]string)
 
+	// 对所有请求按照充电量从大到小排序
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].RequestedCapacity > requests[j].RequestedCapacity
+	})
+
 	// 简化版本：使用贪心算法为每个请求找到最佳充电桩
 	for _, req := range requests {
 		var bestPile *model.ChargingPile
