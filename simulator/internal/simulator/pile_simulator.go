@@ -23,12 +23,15 @@ type PileSimulator struct {
 }
 
 // NewPileSimulator 创建新的充电桩模拟器
-func NewPileSimulator(cfg *config.Config, logger *utils.Logger) *PileSimulator {
+func NewPileSimulator(cfg *config.Config, logger *utils.Logger, clockManager *utils.ClockManager) *PileSimulator {
 	// 创建API客户端
 	apiClient := services.NewAPIClient(cfg, logger)
 
+	// 获取当前时钟
+	clock := clockManager.GetClock()
+
 	// 创建充电桩服务
-	pileService := services.NewPileService(cfg, apiClient, logger)
+	pileService := services.NewPileService(cfg, apiClient, logger, clock)
 
 	// 创建服务器API
 	serverAPI := services.NewServerAPI(cfg, pileService, logger)

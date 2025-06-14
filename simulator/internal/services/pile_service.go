@@ -13,24 +13,26 @@ import (
 
 // PileService 充电桩服务
 type PileService struct {
-	Piles     map[string]*models.Pile
-	apiClient *APIClient
-	config    *config.Config
-	logger    *utils.Logger
-	simTimer  *utils.SimulationTimer
-	stopChans map[string]chan bool
-	mu        sync.Mutex
+	Piles       map[string]*models.Pile
+	apiClient   *APIClient
+	config      *config.Config
+	logger      *utils.Logger
+	stopChans   map[string]chan bool
+	clock       utils.Clock        // 业务逻辑使用的时钟
+	systemClock *utils.SystemClock // 心跳等定期任务始终使用系统时钟
+	mu          sync.Mutex
 }
 
 // NewPileService 创建充电桩服务
-func NewPileService(cfg *config.Config, apiClient *APIClient, logger *utils.Logger) *PileService {
+func NewPileService(cfg *config.Config, apiClient *APIClient, logger *utils.Logger, clock utils.Clock) *PileService {
 	return &PileService{
-		Piles:     make(map[string]*models.Pile),
-		apiClient: apiClient,
-		config:    cfg,
-		logger:    logger,
-		simTimer:  utils.NewSimulationTimer(cfg.Simulation.SpeedFactor),
-		stopChans: make(map[string]chan bool),
+		Piles:       make(map[string]*models.Pile),
+		apiClient:   apiClient,
+		config:      cfg,
+		logger:      logger,
+		stopChans:   make(map[string]chan bool),
+		clock:       clock,
+		systemClock: utils.NewSystemClock(), // 始终使用系统时钟进行定期任务
 	}
 }
 
@@ -111,16 +113,17 @@ func (s *PileService) startChargingSimulation(pile *models.Pile) {
 	stopCh := make(chan bool)
 	s.stopChans[pile.ID] = stopCh
 	s.mu.Unlock()
-
 	// 启动充电模拟协程
 	go func(pile *models.Pile, stopCh chan bool) {
-		ticker := s.simTimer.NewTicker(10 * time.Second) // 每10秒更新一次
-		lastUpdateTime := time.Now().UTC()
+		// 使用系统时钟确保状态上报正常工作
+		ticker := s.systemClock.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		lastUpdateTime := s.clock.Now() // 业务逻辑时间
 
 		for {
 			select {
-			case <-ticker.C:
-				now := time.Now().UTC()
+			case <-ticker.C():
+				now := s.clock.Now() // 使用业务逻辑时钟
 				elapsed := now.Sub(lastUpdateTime)
 				lastUpdateTime = now
 
@@ -303,8 +306,10 @@ func (s *PileService) RecoverFault(pileID string) error {
 func (s *PileService) StartHeartbeat() {
 	interval := time.Duration(s.config.BackendAPI.HeartbeatInterval) * time.Second
 	go func() {
-		ticker := time.NewTicker(interval)
-		for range ticker.C {
+		// 始终使用系统时钟进行心跳，确保定期上报不受模拟时钟影响
+		ticker := s.systemClock.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C() {
 			s.sendHeartbeat()
 		}
 	}()

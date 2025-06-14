@@ -33,12 +33,11 @@ type Config struct {
 		StatusInterval    int    `json:"statusInterval"`    // 状态上报间隔(秒)
 		ProgressInterval  int    `json:"progressInterval"`  // 进度上报间隔(秒)
 		HeartbeatInterval int    `json:"heartbeatInterval"` // 心跳间隔(秒)
-	} `json:"backendAPI"`
-
-	// 模拟设置
+	} `json:"backendAPI"` // 模拟设置
 	Simulation struct {
-		SpeedFactor float64 `json:"speedFactor"` // 模拟加速比例
-		LogLevel    string  `json:"logLevel"`    // 日志级别
+		LogLevel      string `json:"logLevel"`      // 日志级别
+		UseSimClock   bool   `json:"useSimClock"`   // 使用模拟时钟
+		SimClockStart string `json:"simClockStart"` // 模拟时钟起始时间 (RFC3339格式)
 	} `json:"simulation"`
 }
 

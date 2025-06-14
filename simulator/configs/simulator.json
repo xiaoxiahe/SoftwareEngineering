@@ -22,7 +22,8 @@
     "heartbeatInterval": 60
   },
   "simulation": {
-    "speedFactor": 1.0,
-    "logLevel": "error"
+    "logLevel": "error",
+    "useSimClock": true,
+    "simClockStart": "2024-01-01T08:00:00Z"
   }
 }
