@@ -308,6 +308,51 @@ func (r *BillingRepository) GetAllPricingConfig() ([]*model.PricePeriod, error) 
 	return pricePeriods, nil
 }
 
+// GetAllPricingConfigWithRates 获取所有电价配置（包含费率信息）
+func (r *BillingRepository) GetAllPricingConfigWithRates() ([]*model.PriceRate, error) {
+	query := `
+		SELECT price_type, unit_price, service_fee_rate, start_time, end_time
+		FROM pricing_config
+		WHERE effective_date = (SELECT MAX(effective_date) FROM pricing_config)
+		ORDER BY start_time
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var priceRates []*model.PriceRate
+	for rows.Next() {
+		var priceRate model.PriceRate
+		var startTime, endTime time.Time
+
+		err := rows.Scan(
+			&priceRate.Period,
+			&priceRate.ElectricFee,
+			&priceRate.ServiceFee,
+			&startTime,
+			&endTime,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// 将时间信息附加到PriceRate结构中
+		priceRate.StartHour = startTime.Hour()
+		priceRate.EndHour = endTime.Hour()
+		priceRates = append(priceRates, &priceRate)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return priceRates, nil
+}
+
 // GetBillingStatistics 获取计费统计
 func (r *BillingRepository) GetBillingStatistics(startTime, endTime time.Time, pileID *string) (*model.BillingStatistics, error) {
 	var query string

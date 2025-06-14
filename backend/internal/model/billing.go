@@ -11,6 +11,8 @@ type PriceRate struct {
 	Period      string  `json:"period"`      // peak/normal/valley
 	ElectricFee float64 `json:"electricFee"` // 电费(元/度)
 	ServiceFee  float64 `json:"serviceFee"`  // 服务费(元/度)
+	StartHour   int     `json:"startHour"`   // 开始小时
+	EndHour     int     `json:"endHour"`     // 结束小时
 }
 
 // TimePeriod 时间段
@@ -80,4 +82,18 @@ type RevenueStatistics struct {
 	FastRevenue        float64        `json:"fastRevenue"`        // 快充收入(元)
 	SlowRevenue        float64        `json:"slowRevenue"`        // 慢充收入(元)
 	DailySummaries     []DailySummary `json:"dailySummaries"`     // 每日汇总
+}
+
+// TimeSegmentBilling 分时段计费详情
+type TimeSegmentBilling struct {
+	Period       string    `json:"period"`       // peak/normal/valley
+	StartTime    time.Time `json:"startTime"`    // 该时段开始时间
+	EndTime      time.Time `json:"endTime"`      // 该时段结束时间
+	Duration     float64   `json:"duration"`     // 该时段充电时长(小时)
+	Capacity     float64   `json:"capacity"`     // 该时段充电电量(度)
+	ElectricFee  float64   `json:"electricFee"`  // 该时段电费单价
+	ServiceFee   float64   `json:"serviceFee"`   // 该时段服务费单价
+	ElectricCost float64   `json:"electricCost"` // 该时段电费
+	ServiceCost  float64   `json:"serviceCost"`  // 该时段服务费
+	TotalCost    float64   `json:"totalCost"`    // 该时段总费用
 }

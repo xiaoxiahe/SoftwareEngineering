@@ -11,12 +11,14 @@ import (
 // ChargingPileHandler 充电桩处理器
 type ChargingPileHandler struct {
 	chargingPileService *service.ChargingPileService
+	billingService      *service.BillingService
 }
 
 // NewChargingPileHandler 创建充电桩处理器
-func NewChargingPileHandler(chargingPileService *service.ChargingPileService) *ChargingPileHandler {
+func NewChargingPileHandler(chargingPileService *service.ChargingPileService, billingService *service.BillingService) *ChargingPileHandler {
 	return &ChargingPileHandler{
 		chargingPileService: chargingPileService,
+		billingService:      billingService,
 	}
 }
 
@@ -162,14 +164,12 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-
 	// 用于存储所有充电桩的等候车辆信息
 	var pileQueueData []map[string]any
-	// 从服务中获取用户仓库、队列仓库、会话仓库和计费仓库
+	// 从服务中获取用户仓库、队列仓库和会话仓库
 	userRepo := h.chargingPileService.GetUserRepository()
 	queueRepo := h.chargingPileService.GetQueueRepository()
 	sessionRepo := h.chargingPileService.GetSessionRepository()
-	billingRepo := h.chargingPileService.GetBillingRepository()
 
 	// 遍历所有充电桩，获取其队列信息
 	for _, pile := range allPiles {
@@ -200,30 +200,24 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				// 如果获取用户信息失败，使用默认值或跳过
 				continue
-			}
-
-			// 初始化当前充电量和当前费用
+			} // 初始化当前充电量和当前费用
 			var currentChargedCapacity float64 = 0
 			var currentFee float64 = 0
 
 			// 获取该requestID的所有历史会话，累积之前的充电量和费用
 			allSessions, err := sessionRepo.GetAllByRequestID(item.RequestID)
 			if err == nil && len(allSessions) > 0 {
-				// 累积所有历史会话的充电量和费用
+				// 累积所有历史会话的充电量
 				for _, session := range allSessions {
-					// 累积充电量
 					currentChargedCapacity += session.ActualCapacity
-
-					// 计算该会话的费用
-					if priceRate, err := billingRepo.GetCurrentPricing(session.StartTime); err == nil {
-						// 根据电价和电量计算充电费用
-						chargingFee := session.ActualCapacity * priceRate.ElectricFee
-						// 计算服务费
-						serviceFee := session.ActualCapacity * priceRate.ServiceFee
-						// 累积费用
-						currentFee += chargingFee + serviceFee
-					}
 				}
+
+				// 使用 BillingService 的新方法计算累积费用
+				chargingFee, serviceFee, err := h.billingService.CalculateSessionsFeeByRequestID(item.RequestID)
+				if err == nil {
+					currentFee = chargingFee + serviceFee
+				}
+
 				// 四舍五入到小数点后2位
 				currentChargedCapacity = float64(int(currentChargedCapacity*100+0.5)) / 100
 				currentFee = float64(int(currentFee*100+0.5)) / 100

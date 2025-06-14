@@ -19,7 +19,7 @@ func SetupRouter(services *service.Services, cfg *config.Config) http.Handler {
 	admin := middleware.NewAdminMiddleware() // 创建处理器
 	userHandler := handlers.NewUserHandler(services.User)
 	chargingRequestHandler := handlers.NewChargingRequestHandler(services.ChargingRequest, services.ChargingSessionRepo)
-	chargingPileHandler := handlers.NewChargingPileHandler(services.ChargingPile)
+	chargingPileHandler := handlers.NewChargingPileHandler(services.ChargingPile, services.Billing)
 	queueHandler := handlers.NewQueueHandler(services.ChargingRequest, services.System, services.User)
 	billingHandler := handlers.NewBillingHandler(services.Billing)
 	systemHandler := handlers.NewSystemHandler(services.System)
