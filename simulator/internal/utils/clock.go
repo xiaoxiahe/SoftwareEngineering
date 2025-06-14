@@ -38,7 +38,7 @@ func NewSystemClock() *SystemClock {
 }
 
 func (c *SystemClock) Now() time.Time {
-	return time.Now()
+	return time.Now().UTC() // 返回UTC时间
 }
 
 func (c *SystemClock) Since(t time.Time) time.Duration {
