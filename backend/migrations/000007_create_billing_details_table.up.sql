@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS billing_details (
     user_id UUID NOT NULL,
     pile_id VARCHAR(10) NOT NULL,
     charging_capacity DECIMAL(8,2) NOT NULL CHECK (charging_capacity > 0),
-    charging_duration DECIMAL(8,4) NOT NULL CHECK (charging_duration > 0),
+    charging_duration DECIMAL(8,4) NOT NULL,
     start_time TIMESTAMP NOT NULL,
     stop_time TIMESTAMP NOT NULL,
     unit_price DECIMAL(5,2) NOT NULL CHECK (unit_price > 0),

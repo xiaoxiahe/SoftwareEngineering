@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -163,7 +162,7 @@ func (m *Manager) printHelp() {
 	fmt.Println("====================")
 	fmt.Println("可用命令:")
 	fmt.Println("  status [pileID]         - 查看充电桩状态，不指定ID则显示所有")
-	fmt.Println("  fault <pileID> <type> <minutes> <description>")
+	fmt.Println("  fault <pileID> <type> <description>")
 	fmt.Println("                          - 触发充电桩故障")
 	fmt.Println("                            type: hardware/software/power")
 	fmt.Println("  recover <pileID>        - 手动恢复故障")
@@ -232,23 +231,17 @@ func (m *Manager) triggerFault(args []string) {
 	pileID := args[1]
 	faultType := args[2]
 
-	minutes, err := strconv.Atoi(args[3])
-	if err != nil {
-		fmt.Printf("无效的时间格式: %s\n", args[3])
-		return
-	}
-
 	description := "手动触发故障"
 	if len(args) > 4 {
 		description = strings.Join(args[4:], " ")
 	}
 
-	if err := m.simulator.TriggerFault(pileID, faultType, description, minutes); err != nil {
+	if err := m.simulator.TriggerFault(pileID, faultType, description); err != nil {
 		fmt.Printf("触发故障失败: %v\n", err)
 		return
 	}
 
-	fmt.Printf("已触发充电桩 %s 的 %s 故障，持续时间: %d分钟\n", pileID, faultType, minutes)
+	fmt.Printf("已触发充电桩 %s 的 %s 故障\n", pileID, faultType)
 }
 
 // recoverFault 恢复故障

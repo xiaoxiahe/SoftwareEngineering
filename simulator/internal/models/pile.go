@@ -159,7 +159,7 @@ func (p *Pile) RemainingTime() int {
 }
 
 // ReportFault 报告故障
-func (p *Pile) ReportFault(faultType FaultType, description string, duration time.Duration) {
+func (p *Pile) ReportFault(faultType FaultType, description string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -169,7 +169,6 @@ func (p *Pile) ReportFault(faultType FaultType, description string, duration tim
 		Type:        faultType,
 		Description: description,
 		StartTime:   now,
-		EndTime:     now.Add(duration),
 	}
 }
 

@@ -206,10 +206,10 @@ func (s *PileService) randomFault(pile *models.Pile) {
 	faultDuration := time.Duration(rand.Intn(maxTime-minTime+1)+minTime) * time.Minute
 
 	// 报告故障
-	pile.ReportFault(faultType, description, faultDuration)
+	pile.ReportFault(faultType, description)
 
-	s.logger.Warning("充电桩 %s 发生%s故障，预计恢复时间: %d分钟后",
-		pile.ID, faultType, int(faultDuration.Minutes()))
+	s.logger.Warning("充电桩 %s 发生%s故障",
+		pile.ID, faultType)
 
 	// 上报故障
 	if err := s.apiClient.ReportFault(pile, faultType, description); err != nil {
@@ -233,7 +233,7 @@ func (s *PileService) randomFault(pile *models.Pile) {
 }
 
 // TriggerFault 手动触发故障
-func (s *PileService) TriggerFault(pileID string, faultType models.FaultType, description string, duration time.Duration) error {
+func (s *PileService) TriggerFault(pileID string, faultType models.FaultType, description string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -249,30 +249,15 @@ func (s *PileService) TriggerFault(pileID string, faultType models.FaultType, de
 	}
 
 	// 报告故障
-	pile.ReportFault(faultType, description, duration)
+	pile.ReportFault(faultType, description)
 
-	s.logger.Warning("充电桩 %s 手动触发%s故障，预计恢复时间: %d分钟后",
-		pileID, faultType, int(duration.Minutes()))
+	s.logger.Warning("充电桩 %s 手动触发%s故障",
+		pileID, faultType)
 
 	// 上报故障
 	if err := s.apiClient.ReportFault(pile, faultType, description); err != nil {
 		s.logger.Error("上报故障失败: %v", err)
 	}
-	// 启动故障恢复定时器
-	go func(pile *models.Pile, duration time.Duration) {
-		time.Sleep(duration)
-
-		s.mu.Lock()
-		defer s.mu.Unlock()
-
-		pile.RecoverFromFault()
-		s.logger.Info("充电桩 %s 故障已恢复", pile.ID)
-
-		// 上报故障恢复
-		if err := s.apiClient.RecoverFault(pile); err != nil {
-			s.logger.Error("上报故障恢复失败: %v", err)
-		}
-	}(pile, duration)
 
 	return nil
 }

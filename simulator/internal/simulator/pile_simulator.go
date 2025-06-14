@@ -128,7 +128,7 @@ func (s *PileSimulator) startRandomFaultSimulation() {
 }
 
 // TriggerFault 手动触发故障
-func (s *PileSimulator) TriggerFault(pileID string, faultType string, description string, durationMinutes int) error {
+func (s *PileSimulator) TriggerFault(pileID string, faultType string, description string) error {
 	// 转换故障类型
 	var ft models.FaultType
 	switch faultType {
@@ -142,10 +142,7 @@ func (s *PileSimulator) TriggerFault(pileID string, faultType string, descriptio
 		ft = models.FaultTypeHardware
 	}
 
-	// 故障持续时间
-	duration := time.Duration(durationMinutes) * time.Minute
-
-	return s.pileService.TriggerFault(pileID, ft, description, duration)
+	return s.pileService.TriggerFault(pileID, ft, description)
 }
 
 // RecoverFault 手动恢复故障
