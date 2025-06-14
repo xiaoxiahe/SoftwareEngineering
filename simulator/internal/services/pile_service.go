@@ -72,11 +72,10 @@ func (s *PileService) AssignVehicle(pileID, userID string, amount float64, charg
 		s.mu.Unlock()
 		return fmt.Errorf("充电桩 %s 当前不可用", pileID)
 	}
-
 	// 创建充电车辆
 	vehicle := &models.ChargingVehicle{
 		UserID:            userID,
-		StartTime:         time.Now().UTC(),
+		StartTime:         s.clock.Now(), // 使用业务逻辑时钟
 		RequestedCapacity: amount,
 		CurrentCapacity:   0,
 		ChargingMode:      chargingMode,

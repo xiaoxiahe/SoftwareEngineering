@@ -88,7 +88,7 @@ func (s *SchedulerService) StopCharging(requestID uuid.UUID, cancel bool) error 
 }
 
 // UpdateChargingProgress 更新充电进度
-func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, currentCapacity float64, remainingTime int) error {
+func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, currentCapacity float64, remainingTime int, startTime time.Time) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -110,6 +110,13 @@ func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, current
 
 	// 更新充电会话的充电量
 	session.ActualCapacity = currentCapacity
+
+	// 如果session的StartTime与模拟器传递的StartTime不一致，更新为模拟器的时间
+	if !session.StartTime.Equal(startTime) {
+		session.StartTime = startTime
+		log.Printf("更新充电会话开始时间: 充电桩=%s, 用户=%s, 新开始时间=%s",
+			pileID, userID, startTime.Format(time.RFC3339))
+	}
 
 	// 保存更新的会话
 	err = s.sessionRepo.Update(session)
@@ -392,8 +399,7 @@ func (s *SchedulerService) startCharging(requestID uuid.UUID, pileID string) {
 		log.Printf("更新队列开始充电时间失败: %v", err)
 		return
 	}
-
-	// 创建充电会话
+	// 创建充电会话 - 先使用临时时间，会在模拟器响应后更新
 	session := &model.ChargingSession{
 		ID:                uuid.New(),
 		RequestID:         requestID,
@@ -402,7 +408,7 @@ func (s *SchedulerService) startCharging(requestID uuid.UUID, pileID string) {
 		QueueNumber:       request.QueueNumber,
 		RequestedCapacity: request.RequestedCapacity,
 		ActualCapacity:    0,
-		StartTime:         time.Now().UTC(),
+		StartTime:         time.Now().UTC(), // 临时时间，会被模拟器的时间覆盖
 		Status:            model.SessionStatusActive,
 		Duration:          0,
 	}
@@ -413,7 +419,7 @@ func (s *SchedulerService) startCharging(requestID uuid.UUID, pileID string) {
 		return
 	}
 
-	// 向模拟器发送充电指令
+	// 向模拟器发送充电指令并获取实际开始时间
 	if s.simulatorClient != nil {
 		// 根据充电模式确定传递给模拟器的模式参数
 		chargingMode := "trickle" // 默认为慢充
@@ -421,8 +427,8 @@ func (s *SchedulerService) startCharging(requestID uuid.UUID, pileID string) {
 			chargingMode = "fast"
 		}
 
-		// 发送充电指令到模拟器
-		err = s.simulatorClient.AssignCharging(
+		// 发送充电指令到模拟器，获取实际开始时间
+		actualStartTime, err := s.simulatorClient.AssignCharging(
 			pileID,
 			request.UserID.String(),
 			request.RequestedCapacity,
@@ -432,8 +438,15 @@ func (s *SchedulerService) startCharging(requestID uuid.UUID, pileID string) {
 			log.Printf("向模拟器发送充电指令失败: %v", err)
 			// 即使发送失败，也不中断充电流程，仅记录日志
 		} else {
-			log.Printf("成功向模拟器发送充电指令: 充电桩=%s, 用户=%s, 电量=%.1f, 模式=%s",
-				pileID, request.UserID.String(), request.RequestedCapacity, chargingMode)
+			// 更新session的开始时间为模拟器的实际时间
+			session.StartTime = actualStartTime
+			err = s.sessionRepo.Update(session)
+			if err != nil {
+				log.Printf("更新充电会话开始时间失败: %v", err)
+			} else {
+				log.Printf("成功向模拟器发送充电指令并更新开始时间: 充电桩=%s, 用户=%s, 电量=%.1f, 模式=%s, 开始时间=%s",
+					pileID, request.UserID.String(), request.RequestedCapacity, chargingMode, actualStartTime.Format(time.RFC3339))
+			}
 		}
 	} else {
 		log.Printf("模拟器客户端未配置，跳过发送充电指令")
@@ -483,16 +496,10 @@ func (s *SchedulerService) executeStopCharging(requestID uuid.UUID, cancel bool)
 	if err != nil {
 		log.Printf("获取充电会话失败: %v", err)
 		return
-	}
-
-	// 更新会话状态
+	} // 更新会话状态
 	now := time.Now().UTC()
 	session.EndTime = &now
-	session.Duration = now.Sub(session.StartTime).Seconds() // 获取充电桩信息（用于后续更新统计和队列）
-	if err != nil {
-		log.Printf("获取充电桩失败: %v", err)
-		return
-	}
+	session.Duration = now.Sub(session.StartTime).Seconds()
 
 	// 计算充电时长（小时），用于统计
 	chargingHours := float64(session.Duration) / 3600

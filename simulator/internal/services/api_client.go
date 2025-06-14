@@ -17,14 +17,16 @@ type APIClient struct {
 	client  *http.Client
 	baseURL string
 	logger  *utils.Logger
+	clock   utils.Clock // 添加时钟对象
 }
 
 // NewAPIClient 创建API客户端
-func NewAPIClient(cfg *config.Config, logger *utils.Logger) *APIClient {
+func NewAPIClient(cfg *config.Config, logger *utils.Logger, clock utils.Clock) *APIClient {
 	return &APIClient{
 		client:  &http.Client{Timeout: 10 * time.Second},
 		baseURL: cfg.BackendAPI.BaseURL,
 		logger:  logger,
+		clock:   clock,
 	}
 }
 
@@ -129,8 +131,8 @@ func (c *APIClient) CompleteCharging(pile *models.Pile, vehicle *models.Charging
 		return fmt.Errorf("充电车辆信息为空")
 	}
 
-	// 计算充电完成时间和总时长
-	endTime := time.Now().UTC()
+	// 使用业务逻辑时钟计算充电完成时间和总时长
+	endTime := c.clock.Now()
 	chargingDuration := int(endTime.Sub(vehicle.StartTime).Seconds())
 
 	// 准备请求数据

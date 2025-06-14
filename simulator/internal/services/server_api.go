@@ -90,20 +90,37 @@ func (api *ServerAPI) handleChargingAssign(w http.ResponseWriter, r *http.Reques
 		// 默认实现，直接调用充电桩服务
 		err = api.pileService.AssignVehicle(req.PileID, req.UserID, req.RequestedCapacity, req.ChargingMode)
 	}
-
 	if err != nil {
 		http.Error(w, "处理充电分配失败: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// 获取充电桩以获取开始时间
+	pile, err := api.pileService.GetPile(req.PileID)
+	if err != nil {
+		http.Error(w, "获取充电桩信息失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 获取充电桩状态和车辆信息以获取真实的开始时间
+	_, vehicle := pile.GetStatus()
+	var actualStartTime time.Time
+	if vehicle != nil {
+		actualStartTime = vehicle.StartTime
+	} else {
+		actualStartTime = time.Now().UTC() // 备用时间
+	}
+
 	// 构造响应
 	response := struct {
-		Code      int    `json:"code"`
-		Message   string `json:"message"`
-		Timestamp int64  `json:"timestamp"`
+		Code      int       `json:"code"`
+		Message   string    `json:"message"`
+		StartTime time.Time `json:"startTime"` // 添加实际开始时间
+		Timestamp int64     `json:"timestamp"`
 	}{
 		Code:      200,
 		Message:   "充电分配成功",
+		StartTime: actualStartTime,
 		Timestamp: time.Now().UTC().Unix(),
 	}
 	w.Header().Set("Content-Type", "application/json")

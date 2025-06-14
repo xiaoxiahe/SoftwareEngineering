@@ -68,7 +68,7 @@ func (h *SimulatorHandler) UpdateChargingProgress(w http.ResponseWriter, r *http
 		return
 	}
 
-	err := h.schedulerService.UpdateChargingProgress(req.PileID, req.UserID, req.CurrentCapacity, req.RemainingTime)
+	err := h.schedulerService.UpdateChargingProgress(req.PileID, req.UserID, req.CurrentCapacity, req.RemainingTime, req.StartTime)
 
 	if err != nil {
 		http.Error(w, "更新充电进度失败: "+err.Error(), http.StatusInternalServerError)

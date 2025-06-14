@@ -39,8 +39,8 @@ type ChargingStopRequest struct {
 }
 
 // AssignCharging 分配充电
-// 后端调用此方法向模拟器发送充电指令
-func (c *ChargingDispatcherClient) AssignCharging(pileID, userID string, capacity float64, mode string) error {
+// 后端调用此方法向模拟器发送充电指令，返回模拟器的实际开始时间
+func (c *ChargingDispatcherClient) AssignCharging(pileID, userID string, capacity float64, mode string) (time.Time, error) {
 	req := ChargingAssignRequest{
 		PileID:            pileID,
 		UserID:            userID,
@@ -50,19 +50,19 @@ func (c *ChargingDispatcherClient) AssignCharging(pileID, userID string, capacit
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("序列化请求数据失败: %w", err)
+		return time.Time{}, fmt.Errorf("序列化请求数据失败: %w", err)
 	}
 
 	url := c.baseURL + "/api/simulator/charging/assign"
 	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("创建HTTP请求失败: %w", err)
+		return time.Time{}, fmt.Errorf("创建HTTP请求失败: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("发送HTTP请求失败: %w", err)
+		return time.Time{}, fmt.Errorf("发送HTTP请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -71,11 +71,24 @@ func (c *ChargingDispatcherClient) AssignCharging(pileID, userID string, capacit
 			Message string `json:"message"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errorResp); err == nil && errorResp.Message != "" {
-			return fmt.Errorf("服务器返回错误(状态码: %d): %s", resp.StatusCode, errorResp.Message)
+			return time.Time{}, fmt.Errorf("服务器返回错误(状态码: %d): %s", resp.StatusCode, errorResp.Message)
 		}
-		return fmt.Errorf("服务器返回错误(状态码: %d)", resp.StatusCode)
+		return time.Time{}, fmt.Errorf("服务器返回错误(状态码: %d)", resp.StatusCode)
 	}
-	return nil
+
+	// 解析响应以获取startTime
+	var response struct {
+		Code      int       `json:"code"`
+		Message   string    `json:"message"`
+		StartTime time.Time `json:"startTime"`
+		Timestamp int64     `json:"timestamp"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return time.Time{}, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	return response.StartTime, nil
 }
 
 // StopCharging 停止充电

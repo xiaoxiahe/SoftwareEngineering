@@ -199,8 +199,8 @@ func (r *ChargingSessionRepository) GetActiveSessionByPileID(pileID string) (*mo
 func (r *ChargingSessionRepository) Update(session *model.ChargingSession) error {
 	query := `
 		UPDATE charging_sessions
-		SET actual_capacity = $1, end_time = $2, status = $3, duration = $4
-		WHERE id = $5
+		SET actual_capacity = $1, end_time = $2, status = $3, duration = $4, start_time = $5
+		WHERE id = $6
 	`
 
 	var endTime any = nil
@@ -214,6 +214,7 @@ func (r *ChargingSessionRepository) Update(session *model.ChargingSession) error
 		endTime,
 		session.Status,
 		session.Duration,
+		session.StartTime,
 		session.ID,
 	)
 
