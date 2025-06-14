@@ -10,10 +10,12 @@ import (
 
 // ChargingPileService 充电桩服务
 type ChargingPileService struct {
-	pileRepo  *repository.ChargingPileRepository
-	sysRepo   *repository.SystemRepository
-	userRepo  *repository.UserRepository
-	queueRepo *repository.QueueRepository
+	pileRepo    *repository.ChargingPileRepository
+	sysRepo     *repository.SystemRepository
+	userRepo    *repository.UserRepository
+	queueRepo   *repository.QueueRepository
+	sessionRepo *repository.ChargingSessionRepository
+	billingRepo *repository.BillingRepository
 }
 
 // NewChargingPileService 创建充电桩服务
@@ -22,12 +24,16 @@ func NewChargingPileService(
 	sysRepo *repository.SystemRepository,
 	userRepo *repository.UserRepository,
 	queueRepo *repository.QueueRepository,
+	sessionRepo *repository.ChargingSessionRepository,
+	billingRepo *repository.BillingRepository,
 ) *ChargingPileService {
 	return &ChargingPileService{
-		pileRepo:  pileRepo,
-		sysRepo:   sysRepo,
-		userRepo:  userRepo,
-		queueRepo: queueRepo,
+		pileRepo:    pileRepo,
+		sysRepo:     sysRepo,
+		userRepo:    userRepo,
+		queueRepo:   queueRepo,
+		sessionRepo: sessionRepo,
+		billingRepo: billingRepo,
 	}
 }
 
@@ -188,6 +194,16 @@ func (s *ChargingPileService) GetUserRepository() *repository.UserRepository {
 // GetQueueRepository 获取队列仓库
 func (s *ChargingPileService) GetQueueRepository() *repository.QueueRepository {
 	return s.queueRepo
+}
+
+// GetSessionRepository 获取充电会话仓库
+func (s *ChargingPileService) GetSessionRepository() *repository.ChargingSessionRepository {
+	return s.sessionRepo
+}
+
+// GetBillingRepository 获取计费仓库
+func (s *ChargingPileService) GetBillingRepository() *repository.BillingRepository {
+	return s.billingRepo
 }
 
 // 辅助函数: 验证充电桩状态是否合法

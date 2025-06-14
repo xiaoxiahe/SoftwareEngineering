@@ -165,10 +165,11 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 
 	// 用于存储所有充电桩的等候车辆信息
 	var pileQueueData []map[string]any
-
-	// 从服务中获取用户仓库和队列仓库
+	// 从服务中获取用户仓库、队列仓库、会话仓库和计费仓库
 	userRepo := h.chargingPileService.GetUserRepository()
 	queueRepo := h.chargingPileService.GetQueueRepository()
+	sessionRepo := h.chargingPileService.GetSessionRepository()
+	billingRepo := h.chargingPileService.GetBillingRepository()
 
 	// 遍历所有充电桩，获取其队列信息
 	for _, pile := range allPiles {
@@ -192,7 +193,6 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			"status": pile.Status,
 			"power":  pile.Power,
 		}
-
 		// 整理等候车辆信息
 		var queueVehicles []map[string]any
 		for _, item := range queueItems {
@@ -203,14 +203,41 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 				continue
 			}
 
+			// 初始化当前充电量和当前费用
+			var currentChargedCapacity float64 = 0
+			var currentFee float64 = 0
+
+			// 检查是否有正在进行的充电会话
+			activeSession, err := sessionRepo.GetActiveSessionByPileID(pile.ID)
+			if err == nil && activeSession.UserID == item.UserID {
+				// 有正在进行的充电会话，计算当前充电量和费用
+				currentChargedCapacity = activeSession.ActualCapacity
+
+				// 计算当前费用（模仿billing_service中的GenerateBill逻辑）
+				if priceRate, err := billingRepo.GetCurrentPricing(activeSession.StartTime); err == nil {
+					// 根据电价和电量计算充电费用
+					chargingFee := currentChargedCapacity * priceRate.ElectricFee
+					// 计算服务费
+					serviceFee := currentChargedCapacity * priceRate.ServiceFee
+					// 计算总费用
+					currentFee = chargingFee + serviceFee
+					// 四舍五入到小数点后2位
+					currentFee = float64(int(currentFee*100+0.5)) / 100
+				}
+				// 四舍五入当前充电量到小数点后2位
+				currentChargedCapacity = float64(int(currentChargedCapacity*100+0.5)) / 100
+			}
+
 			// 整理车辆信息
 			vehicleInfo := map[string]any{
-				"userId":            item.UserID.String(),
-				"batteryCapacity":   user.BatteryCapacity,
-				"requestedCapacity": item.RequestedCapacity,
-				"queueTime":         item.WaitTime, // 排队时长（秒）
-				"queuePosition":     item.Position,
-				"queueNumber":       item.QueueNumber,
+				"userId":                 item.UserID.String(),
+				"batteryCapacity":        user.BatteryCapacity,
+				"requestedCapacity":      item.RequestedCapacity,
+				"currentChargedCapacity": currentChargedCapacity, // 新增：当前充电量
+				"currentFee":             currentFee,             // 新增：当前费用
+				"queueTime":              item.WaitTime,          // 排队时长（秒）
+				"queuePosition":          item.Position,
+				"queueNumber":            item.QueueNumber,
 			}
 
 			queueVehicles = append(queueVehicles, vehicleInfo)

@@ -35,7 +35,7 @@ func NewServices(db *sql.DB, cfg *config.Config) *Services {
 	billingService := NewBillingService(billingRepo, chargingSessionRepo, systemRepo, chargingPileRepo)
 	systemService := NewSystemService(systemRepo, chargingRequestRepo, chargingSessionRepo, billingRepo, queueRepo, chargingPileRepo)
 	schedulerService := NewSchedulerService(chargingRequestRepo, chargingPileRepo, queueRepo, chargingSessionRepo, systemRepo)
-	chargingPileService := NewChargingPileService(chargingPileRepo, systemRepo, userRepo, queueRepo)
+	chargingPileService := NewChargingPileService(chargingPileRepo, systemRepo, userRepo, queueRepo, chargingSessionRepo, billingRepo)
 	bootstrapService := NewBootstrapService(systemRepo, chargingPileRepo, cfg)
 	// 设置计费服务（避免循环依赖）
 	schedulerService.SetBillingService(billingService)
