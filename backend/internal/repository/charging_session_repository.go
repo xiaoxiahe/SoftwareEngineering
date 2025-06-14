@@ -437,3 +437,57 @@ func (r *ChargingSessionRepository) GetSessionsByPileID(pileID string, startTime
 
 	return sessions, nil
 }
+
+// GetAllByRequestID 通过请求ID获取所有充电会话（包括历史会话）
+func (r *ChargingSessionRepository) GetAllByRequestID(requestID uuid.UUID) ([]*model.ChargingSession, error) {
+	query := `
+		SELECT id, request_id, user_id, pile_id, queue_number, requested_capacity, 
+			   actual_capacity, start_time, end_time, status, duration, created_at
+		FROM charging_sessions
+		WHERE request_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := r.db.Query(query, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []*model.ChargingSession
+	for rows.Next() {
+		var session model.ChargingSession
+		var endTime sql.NullTime
+
+		err := rows.Scan(
+			&session.ID,
+			&session.RequestID,
+			&session.UserID,
+			&session.PileID,
+			&session.QueueNumber,
+			&session.RequestedCapacity,
+			&session.ActualCapacity,
+			&session.StartTime,
+			&endTime,
+			&session.Status,
+			&session.Duration,
+			&session.CreatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if endTime.Valid {
+			session.EndTime = &endTime.Time
+		}
+
+		sessions = append(sessions, &session)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return sessions, nil
+}

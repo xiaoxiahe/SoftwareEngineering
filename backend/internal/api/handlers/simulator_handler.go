@@ -50,6 +50,7 @@ type ChargingProgressRequest struct {
 	RequestedCapacity float64   `json:"requestedCapacity"`
 	ChargingRate      float64   `json:"chargingRate"`  // 度/小时
 	RemainingTime     int       `json:"remainingTime"` // 秒
+	ReportTime        time.Time `json:"reportTime"`    // 上报时间
 }
 
 // UpdateChargingProgress 更新充电进度
@@ -68,7 +69,7 @@ func (h *SimulatorHandler) UpdateChargingProgress(w http.ResponseWriter, r *http
 		return
 	}
 
-	err := h.schedulerService.UpdateChargingProgress(req.PileID, req.UserID, req.CurrentCapacity, req.RemainingTime, req.StartTime)
+	err := h.schedulerService.UpdateChargingProgress(req.PileID, req.UserID, req.CurrentCapacity, req.RemainingTime, req.StartTime, req.ReportTime)
 
 	if err != nil {
 		http.Error(w, "更新充电进度失败: "+err.Error(), http.StatusInternalServerError)

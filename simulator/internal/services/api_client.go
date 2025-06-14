@@ -51,6 +51,7 @@ type ChargingProgressRequest struct {
 	RequestedCapacity float64   `json:"requestedCapacity"`
 	ChargingRate      float64   `json:"chargingRate"`  // 度/小时
 	RemainingTime     int       `json:"remainingTime"` // 秒
+	ReportTime        time.Time `json:"reportTime"`    // 上报时间
 }
 
 // UpdateChargingProgress 上报充电进度
@@ -68,6 +69,7 @@ func (c *APIClient) UpdateChargingProgress(pile *models.Pile) error {
 		StartTime:         vehicle.StartTime,
 		CurrentCapacity:   vehicle.CurrentCapacity,
 		RequestedCapacity: vehicle.RequestedCapacity,
+		ReportTime:        c.clock.Now(),
 		ChargingRate:      pile.Power,           // kW
 		RemainingTime:     pile.RemainingTime(), // 秒
 	}

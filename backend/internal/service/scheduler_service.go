@@ -88,7 +88,7 @@ func (s *SchedulerService) StopCharging(requestID uuid.UUID, cancel bool) error 
 }
 
 // UpdateChargingProgress 更新充电进度
-func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, currentCapacity float64, remainingTime int, startTime time.Time) error {
+func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, currentCapacity float64, remainingTime int, startTime time.Time, reportTime time.Time) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -110,12 +110,11 @@ func (s *SchedulerService) UpdateChargingProgress(pileID, userID string, current
 
 	// 更新充电会话的充电量
 	session.ActualCapacity = currentCapacity
+	session.EndTime = &reportTime
 
 	// 如果session的StartTime与模拟器传递的StartTime不一致，更新为模拟器的时间
 	if !session.StartTime.Equal(startTime) {
 		session.StartTime = startTime
-		log.Printf("更新充电会话开始时间: 充电桩=%s, 用户=%s, 新开始时间=%s",
-			pileID, userID, startTime.Format(time.RFC3339))
 	}
 
 	// 保存更新的会话
@@ -644,17 +643,7 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 			log.Printf("获取充电会话失败: %v", err)
 		}
 	} else if session != nil { // 停止当前充电会话
-		now := time.Now().UTC()
-		session.EndTime = &now
-		session.Duration = now.Sub(session.StartTime).Seconds()
 		session.Status = model.SessionStatusInterrupted
-
-		// 保持当前的实际充电量，不重新计算
-		// ActualCapacity 在充电过程中通过 UpdateChargingProgress 方法持续更新
-		// 故障时保持当前的充电量即可
-		if session.ActualCapacity > session.RequestedCapacity {
-			session.ActualCapacity = session.RequestedCapacity
-		}
 
 		// 更新会话
 		err = s.sessionRepo.Update(session)
@@ -669,6 +658,7 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 				log.Printf("生成部分详单失败: %v", err)
 			}
 		}
+
 	}
 
 	// 获取故障充电桩的类型信息

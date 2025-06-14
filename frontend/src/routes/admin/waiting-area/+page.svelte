@@ -38,13 +38,6 @@
 	// 组件挂载时获取数据
 	onMount(() => {
 		fetchWaitingVehicles();
-
-		// 设置自动刷新，每30秒刷新一次
-		const interval = setInterval(fetchWaitingVehicles, 30000);
-
-		return () => {
-			clearInterval(interval);
-		};
 	});
 
 	// 处理手动刷新

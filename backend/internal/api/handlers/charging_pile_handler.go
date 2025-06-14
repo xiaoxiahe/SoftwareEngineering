@@ -192,8 +192,7 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			"type":   pileType,
 			"status": pile.Status,
 			"power":  pile.Power,
-		}
-		// 整理等候车辆信息
+		} // 整理等候车辆信息
 		var queueVehicles []map[string]any
 		for _, item := range queueItems {
 			// 获取用户信息，主要是为了获取车辆电池容量
@@ -207,25 +206,27 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			var currentChargedCapacity float64 = 0
 			var currentFee float64 = 0
 
-			// 检查是否有正在进行的充电会话
-			activeSession, err := sessionRepo.GetActiveSessionByPileID(pile.ID)
-			if err == nil && activeSession.UserID == item.UserID {
-				// 有正在进行的充电会话，计算当前充电量和费用
-				currentChargedCapacity = activeSession.ActualCapacity
+			// 获取该requestID的所有历史会话，累积之前的充电量和费用
+			allSessions, err := sessionRepo.GetAllByRequestID(item.RequestID)
+			if err == nil && len(allSessions) > 0 {
+				// 累积所有历史会话的充电量和费用
+				for _, session := range allSessions {
+					// 累积充电量
+					currentChargedCapacity += session.ActualCapacity
 
-				// 计算当前费用（模仿billing_service中的GenerateBill逻辑）
-				if priceRate, err := billingRepo.GetCurrentPricing(activeSession.StartTime); err == nil {
-					// 根据电价和电量计算充电费用
-					chargingFee := currentChargedCapacity * priceRate.ElectricFee
-					// 计算服务费
-					serviceFee := currentChargedCapacity * priceRate.ServiceFee
-					// 计算总费用
-					currentFee = chargingFee + serviceFee
-					// 四舍五入到小数点后2位
-					currentFee = float64(int(currentFee*100+0.5)) / 100
+					// 计算该会话的费用
+					if priceRate, err := billingRepo.GetCurrentPricing(session.StartTime); err == nil {
+						// 根据电价和电量计算充电费用
+						chargingFee := session.ActualCapacity * priceRate.ElectricFee
+						// 计算服务费
+						serviceFee := session.ActualCapacity * priceRate.ServiceFee
+						// 累积费用
+						currentFee += chargingFee + serviceFee
+					}
 				}
-				// 四舍五入当前充电量到小数点后2位
+				// 四舍五入到小数点后2位
 				currentChargedCapacity = float64(int(currentChargedCapacity*100+0.5)) / 100
+				currentFee = float64(int(currentFee*100+0.5)) / 100
 			}
 
 			// 整理车辆信息
