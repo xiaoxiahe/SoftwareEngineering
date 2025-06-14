@@ -163,6 +163,8 @@ func (s *SchedulerService) executeSchedule() {
 	// 调度流程
 	if config.ExtendedSchedulingMode == model.ExtendedModeBatch {
 		s.checkAndExecuteBatchScheduling(config)
+	} else if config.ExtendedSchedulingMode == model.ExtendedModeSingleOptimal {
+		s.checkAndExecuteSingleOptimalScheduling(config)
 	} else {
 		s.executeNormalScheduling(config)
 	}
@@ -986,6 +988,221 @@ func (s *SchedulerService) checkAndExecuteBatchScheduling(config *model.Scheduli
 		log.Printf("批量调度等待中: 当前等候区车辆数量=%d，需要达到可用总车位数=%d (可用快充桩:%d, 可用慢充桩:%d)",
 			len(allRequests), totalSlots, len(availableFastPiles), len(availableSlowPiles))
 	}
+}
+
+// checkAndExecuteSingleOptimalScheduling 检查并执行单次调度总充电时长最短策略
+func (s *SchedulerService) checkAndExecuteSingleOptimalScheduling(config *model.SchedulingConfig) {
+	// 获取可用的快充桩和慢充桩
+	availableFastPiles, err := s.pileRepo.GetAvailablePiles(model.PileTypeFast, config.ChargingQueueLen)
+	if err != nil {
+		log.Printf("获取可用快充桩失败: %v", err)
+		return
+	}
+
+	availableSlowPiles, err := s.pileRepo.GetAvailablePiles(model.PileTypeSlow, config.ChargingQueueLen)
+	if err != nil {
+		log.Printf("获取可用慢充桩失败: %v", err)
+		return
+	}
+
+	// 计算快充和慢充桩的空位数
+	fastEmptySlots := s.calculateEmptySlots(availableFastPiles, config.ChargingQueueLen)
+	slowEmptySlots := s.calculateEmptySlots(availableSlowPiles, config.ChargingQueueLen)
+
+	log.Printf("单次调度检查: 快充空位=%d, 慢充空位=%d", fastEmptySlots, slowEmptySlots)
+
+	// 检查是否满足调度条件：快充2个空位，慢充3个空位
+	shouldScheduleFast := fastEmptySlots >= 2
+	shouldScheduleSlow := slowEmptySlots >= 3
+
+	if shouldScheduleFast || shouldScheduleSlow {
+		err := s.executeSingleOptimalScheduling(shouldScheduleFast, shouldScheduleSlow, config)
+		if err != nil {
+			log.Printf("单次调度执行失败: %v", err)
+		}
+	} else {
+		log.Printf("单次调度等待中: 快充空位不足2个(当前%d)或慢充空位不足3个(当前%d)", fastEmptySlots, slowEmptySlots)
+	}
+}
+
+// calculateEmptySlots 计算充电桩的空位数
+func (s *SchedulerService) calculateEmptySlots(piles []*model.ChargingPile, maxQueueLen int) int {
+	totalEmptySlots := 0
+	for _, pile := range piles {
+		emptySlots := maxQueueLen - pile.QueueLength
+		if emptySlots > 0 {
+			totalEmptySlots += emptySlots
+		}
+	}
+	return totalEmptySlots
+}
+
+// executeSingleOptimalScheduling 执行单次调度总充电时长最短策略
+func (s *SchedulerService) executeSingleOptimalScheduling(shouldScheduleFast, shouldScheduleSlow bool, config *model.SchedulingConfig) error {
+	log.Printf("执行单次调度: 快充=%v, 慢充=%v", shouldScheduleFast, shouldScheduleSlow)
+
+	// 获取等候区请求
+	var fastRequests []*model.ChargingRequest
+	var slowRequests []*model.ChargingRequest
+	var err error
+
+	if shouldScheduleFast {
+		fastRequests, err = s.requestRepo.GetWaitingRequestsByMode(model.ChargingModeFast)
+		if err != nil {
+			return fmt.Errorf("获取快充请求失败: %w", err)
+		}
+		// 检查快充请求数量是否足够
+		if len(fastRequests) < 2 {
+			log.Printf("快充请求数量不足: 需要2个，实际%d个", len(fastRequests))
+			shouldScheduleFast = false
+		}
+	}
+
+	if shouldScheduleSlow {
+		slowRequests, err = s.requestRepo.GetWaitingRequestsByMode(model.ChargingModeSlow)
+		if err != nil {
+			return fmt.Errorf("获取慢充请求失败: %w", err)
+		}
+		// 检查慢充请求数量是否足够
+		if len(slowRequests) < 3 {
+			log.Printf("慢充请求数量不足: 需要3个，实际%d个", len(slowRequests))
+			shouldScheduleSlow = false
+		}
+	}
+
+	// 如果都不能调度，直接返回
+	if !shouldScheduleFast && !shouldScheduleSlow {
+		return fmt.Errorf("快充和慢充请求数量均不足，跳过调度")
+	}
+
+	// 执行快充调度
+	if shouldScheduleFast {
+		s.sortRequests(fastRequests)
+		err = s.executeSingleOptimalForMode(fastRequests[:2], model.PileTypeFast, config)
+		if err != nil {
+			log.Printf("快充单次调度失败: %v", err)
+		}
+	}
+
+	// 执行慢充调度
+	if shouldScheduleSlow {
+		s.sortRequests(slowRequests)
+		err = s.executeSingleOptimalForMode(slowRequests[:3], model.PileTypeSlow, config)
+		if err != nil {
+			log.Printf("慢充单次调度失败: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// executeSingleOptimalForMode 为特定充电模式执行单次最优调度
+func (s *SchedulerService) executeSingleOptimalForMode(requests []*model.ChargingRequest, pileType model.PileType, config *model.SchedulingConfig) error {
+	// 获取对应类型的可用充电桩
+	availablePiles, err := s.pileRepo.GetAvailablePiles(pileType, config.ChargingQueueLen)
+	if err != nil {
+		return fmt.Errorf("获取可用充电桩失败: %w", err)
+	}
+
+	// 按充电量从大到小排序请求
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].RequestedCapacity > requests[j].RequestedCapacity
+	})
+
+	// 计算最优分配方案，考虑充电模式限制
+	assignment := s.calculateOptimalAssignmentWithModeConstraint(requests, availablePiles, config.ChargingQueueLen)
+
+	// 执行分配
+	scheduledCount := 0
+	for _, req := range requests {
+		if pileID, exists := assignment[req.ID]; exists {
+			pile, err := s.pileRepo.GetByID(pileID)
+			if err != nil {
+				log.Printf("获取充电桩失败: %v", err)
+				continue
+			}
+			s.scheduleRequestToPile(req.ID, pileID, pile.QueueLength+1)
+			scheduledCount++
+			log.Printf("单次调度: 请求%s(模式:%s)分配到充电桩%s", req.ID, req.ChargingMode, pileID)
+		}
+	}
+
+	log.Printf("单次调度完成: %s模式，成功调度%d个请求", pileType, scheduledCount)
+	return nil
+}
+
+// calculateOptimalAssignmentWithModeConstraint 计算考虑充电模式限制的最优分配方案
+func (s *SchedulerService) calculateOptimalAssignmentWithModeConstraint(requests []*model.ChargingRequest, piles []*model.ChargingPile, maxQueueLen int) map[uuid.UUID]string {
+	assignment := make(map[uuid.UUID]string)
+
+	// 为每个请求找到总充电时长最短的充电桩
+	for _, req := range requests {
+		var bestPile *model.ChargingPile
+		var minTotalCompletionTime float64 = -1
+
+		for _, pile := range piles {
+			// 检查是否有空位
+			if pile.QueueLength >= maxQueueLen {
+				continue
+			}
+
+			// 验证充电模式匹配
+			if !s.isChargingModeCompatible(req.ChargingMode, pile.PileType) {
+				continue
+			}
+
+			// 计算当前分配情况下的总完成时间
+			totalCompletionTime := s.calculateTotalCompletionTimeWithAssignment(req, pile, assignment)
+
+			if minTotalCompletionTime < 0 || totalCompletionTime < minTotalCompletionTime {
+				minTotalCompletionTime = totalCompletionTime
+				bestPile = pile
+			}
+		}
+
+		if bestPile != nil {
+			assignment[req.ID] = bestPile.ID
+			bestPile.QueueLength++ // 模拟更新队列长度以便下次计算
+		}
+	}
+
+	return assignment
+}
+
+// isChargingModeCompatible 检查充电模式是否与充电桩类型兼容
+func (s *SchedulerService) isChargingModeCompatible(chargingMode model.ChargingMode, pileType model.PileType) bool {
+	switch chargingMode {
+	case model.ChargingModeFast:
+		return pileType == model.PileTypeFast
+	case model.ChargingModeSlow:
+		return pileType == model.PileTypeSlow
+	default:
+		return false
+	}
+}
+
+// calculateTotalCompletionTimeWithAssignment 计算考虑当前分配的总完成时间
+func (s *SchedulerService) calculateTotalCompletionTimeWithAssignment(req *model.ChargingRequest, pile *model.ChargingPile, assignment map[uuid.UUID]string) float64 {
+	// 计算当前充电桩队列中的等待时间
+	currentWaitTime := s.calculateWaitTime(pile.ID)
+
+	// 计算已分配到该充电桩但还未实际调度的请求的充电时间
+	pendingWaitTime := float64(0)
+	for reqID, pileID := range assignment {
+		if pileID == pile.ID {
+			pendingReq, err := s.requestRepo.GetByID(reqID)
+			if err == nil {
+				pendingChargingTime := pendingReq.RequestedCapacity / pile.Power * 3600
+				pendingWaitTime += pendingChargingTime
+			}
+		}
+	}
+
+	// 计算该请求自身的充电时间
+	selfChargingTime := req.RequestedCapacity / pile.Power * 3600
+
+	// 总完成时间 = 当前等待时间 + 待分配请求充电时间 + 自身充电时间
+	return currentWaitTime + pendingWaitTime + selfChargingTime
 }
 
 // executeFaultRescheduling 执行智能故障调度

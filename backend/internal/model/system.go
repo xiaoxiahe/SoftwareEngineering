@@ -61,8 +61,9 @@ type SystemConfig struct {
 type ExtendedSchedulingMode string
 
 const (
-	ExtendedModeDisabled ExtendedSchedulingMode = "disabled" // 禁用扩展调度
-	ExtendedModeBatch    ExtendedSchedulingMode = "batch"    // 批量调度总充电时长最短
+	ExtendedModeDisabled      ExtendedSchedulingMode = "disabled"      // 禁用扩展调度
+	ExtendedModeBatch         ExtendedSchedulingMode = "batch"         // 批量调度总充电时长最短
+	ExtendedModeSingleOptimal ExtendedSchedulingMode = "singleOptimal" // 单次调度总充电时长最短
 )
 
 // SchedulingConfig 调度配置

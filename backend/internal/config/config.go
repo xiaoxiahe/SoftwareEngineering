@@ -48,7 +48,7 @@ type ChargingConfig struct {
 	FastChargingPower      float64 `json:"fastChargingPower"`
 	TrickleChargingPower   float64 `json:"trickleChargingPower"`
 	ServiceFeePerUnit      float64 `json:"serviceFeePerUnit"`
-	ExtendedSchedulingMode string  `json:"extendedSchedulingMode"` // "disabled", "batch"
+	ExtendedSchedulingMode string  `json:"extendedSchedulingMode"` // "disabled", "batch", "singleOptimal"
 }
 
 // PricingConfig 计价配置
