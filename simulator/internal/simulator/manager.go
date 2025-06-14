@@ -370,14 +370,26 @@ func (m *Manager) setTimeCommand(args []string) {
 		"2006-01-02 15:04:05",
 		"15:04:05",
 	}
-
 	for _, format := range formats {
 		if format == "15:04:05" {
 			// 只有时间，使用当前模拟日期
 			currentTime, _ := m.clockManager.GetSimulatedTime()
+
+			// 先尝试使用当前日期
 			today := currentTime.Format("2006-01-02")
 			timeStr = today + " " + args[2]
 			format = "2006-01-02 15:04:05"
+
+			// 解析输入的时间
+			parsedTime, parseErr := time.ParseInLocation(format, timeStr, time.Local)
+			if parseErr == nil {
+				// 如果解析成功，检查时间是否早于当前时间
+				if parsedTime.Before(currentTime.In(time.Local)) {
+					// 如果早于当前时间，则使用明天的日期
+					tomorrow := currentTime.AddDate(0, 0, 1).Format("2006-01-02")
+					timeStr = tomorrow + " " + args[2]
+				}
+			}
 		}
 
 		if format == time.RFC3339 {
