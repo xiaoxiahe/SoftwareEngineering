@@ -238,7 +238,7 @@
 							type="number"
 							min="0.1"
 							max={auth.user?.vehicleInfo?.batteryCapacity || 60}
-							step="0.1"
+							step="0.01"
 							bind:value={requestedCapacity}
 							disabled={isLoading}
 						/>
