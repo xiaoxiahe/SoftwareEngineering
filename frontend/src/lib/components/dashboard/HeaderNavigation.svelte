@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { auth } from '$lib/stores/auth';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
 	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
 	import {
@@ -14,7 +14,7 @@
 	import { Button } from '$lib/components/ui/button';
 
 	// 获取用户名首字母
-	$: userInitials = $auth.user?.username ? $auth.user.username.substring(0, 2).toUpperCase() : 'U';
+	$: userInitials = auth.user?.username ? auth.user.username.substring(0, 2).toUpperCase() : 'U';
 
 	// 注销处理
 	const handleLogout = () => {
@@ -27,7 +27,9 @@
 	export let activeItem: string = '';
 </script>
 
-<nav class="bg-gradient-to-r from-blue-50 via-white to-blue-50 border-b shadow-sm px-4 py-2 md:px-6">
+<nav
+	class="border-b bg-gradient-to-r from-blue-50 via-white to-blue-50 px-4 py-2 shadow-sm md:px-6"
+>
 	<div class="container flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<div class="block md:hidden">
@@ -193,9 +195,9 @@
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
-					{#if $auth.user}
+					{#if auth.user}
 						<DropdownMenuLabel>
-							{$auth.user.username}
+							{auth.user.username}
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
 					{/if}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/api';
-	import { auth, chargingRequest } from '$lib/stores/auth';
+	import { auth, chargingRequest } from '$lib/stores/auth.svelte';
 	import {
 		Card,
 		CardContent,
@@ -41,26 +41,25 @@
 		priceType: 'normal' as 'peak' | 'normal' | 'valley',
 		unitPrice: 0
 	});
-
 	// 弹窗状态
 	let showErrorDialog = $state(false);
 	let errorDialogMessage = $state(''); // 检查是否有活动的请求
 	$effect(() => {
 		(async () => {
-			if ($chargingRequest) {
+			if (chargingRequest.current) {
 				// 如果有存储的请求，使用它
-				isModifying = $chargingRequest.status === 'waiting';
+				isModifying = chargingRequest.current.status === 'waiting';
 				if (isModifying) {
 					// 预填表单
-					chargingMode = $chargingRequest.queueNumber.startsWith('F') ? 'fast' : 'slow';
-					requestedCapacity = $chargingRequest.requestedCapacity || 20;
+					chargingMode = chargingRequest.current.queueNumber.startsWith('F') ? 'fast' : 'slow';
+					requestedCapacity = chargingRequest.current.requestedCapacity || 20;
 				}
 			} else {
 				// 如果没有存储的请求，尝试从API获取
 				try {
 					const latestRequest = await api.charging.getUserLatestRequest();
 					if (latestRequest && (latestRequest as any).status === 'waiting') {
-						$chargingRequest = latestRequest as any;
+						chargingRequest.set(latestRequest as any);
 						isModifying = true;
 						chargingMode = (latestRequest as any).queueNumber?.startsWith('F') ? 'fast' : 'slow';
 						requestedCapacity = (latestRequest as any).requestedCapacity || 20;
@@ -103,10 +102,9 @@
 			};
 		}
 	}
-
 	// 监听表单值变化并更新充电量限制
 	$effect(() => {
-		const maxCapacity = Number($auth.user?.vehicleInfo?.batteryCapacity || 60);
+		const maxCapacity = Number(auth.user?.vehicleInfo?.batteryCapacity || 60);
 		requestedCapacity = Math.max(0.1, Math.min(maxCapacity, requestedCapacity));
 	});
 
@@ -130,17 +128,16 @@
 				chargingMode,
 				requestedCapacity
 			};
-
-			if (isModifying && $chargingRequest) {
+			if (isModifying && chargingRequest.current) {
 				// 修改请求
-				result = await api.charging.updateRequest($chargingRequest.requestId, requestData);
+				result = await api.charging.updateRequest(chargingRequest.current.requestId, requestData);
 				success = '充电请求修改成功！';
 			} else {
 				// 创建新请求
 				result = await api.charging.createRequest(requestData);
 				success = '充电请求提交成功！';
 			} // 更新存储的请求
-			$chargingRequest = (await api.charging.getRequest((result as any).requestId)) as any;
+			chargingRequest.set((await api.charging.getRequest((result as any).requestId)) as any);
 
 			// 重置表单
 			isModifying = true;
@@ -152,14 +149,13 @@
 			isLoading = false;
 		}
 	}
-
 	// 取消修改
 	function cancelModification() {
-		if (!$chargingRequest) return;
+		if (!chargingRequest.current) return;
 
 		isModifying = true;
-		chargingMode = $chargingRequest.queueNumber.startsWith('F') ? 'fast' : 'slow';
-		requestedCapacity = $chargingRequest.requestedCapacity || 20;
+		chargingMode = chargingRequest.current.queueNumber.startsWith('F') ? 'fast' : 'slow';
+		requestedCapacity = chargingRequest.current.requestedCapacity || 20;
 		error = '';
 		success = '';
 	}
@@ -206,11 +202,14 @@
 						<AlertDescription>{success}</AlertDescription>
 					</Alert>
 				{/if}
-
-				{#if isModifying && $chargingRequest}
+				{#if isModifying && chargingRequest.current}
 					<div class="mb-6 rounded-md bg-blue-50 p-4 text-sm text-blue-700">
-						<p>✏️ 您正在修改排队号为 <strong>{$chargingRequest.queueNumber}</strong> 的充电请求</p>
-						<p class="mt-2">⚠️ 注意：修改充电模式会重新生成排队号，您将排到对应模式队列的最后一位</p>
+						<p>
+							✏️ 您正在修改排队号为 <strong>{chargingRequest.current.queueNumber}</strong> 的充电请求
+						</p>
+						<p class="mt-2">
+							⚠️ 注意：修改充电模式会重新生成排队号，您将排到对应模式队列的最后一位
+						</p>
 					</div>
 				{/if}
 
@@ -238,20 +237,19 @@
 							id="capacity"
 							type="number"
 							min="0.1"
-							max={$auth.user?.vehicleInfo?.batteryCapacity || 60}
+							max={auth.user?.vehicleInfo?.batteryCapacity || 60}
 							step="0.1"
 							bind:value={requestedCapacity}
 							disabled={isLoading}
 						/>
-						{#if $auth.user?.vehicleInfo?.batteryCapacity}
+						{#if auth.user?.vehicleInfo?.batteryCapacity}
 							<p class="text-muted-foreground text-xs">
-								⚠️ 最大可充: {$auth.user.vehicleInfo.batteryCapacity} 度
+								⚠️ 最大可充: {auth.user.vehicleInfo.batteryCapacity} 度
 							</p>
 						{/if}
 					</div>
-
 					<div class="mt-2 flex justify-between">
-						{#if isModifying && $chargingRequest}
+						{#if isModifying && chargingRequest.current}
 							<Button
 								type="button"
 								variant="outline"
@@ -265,7 +263,7 @@
 								type="button"
 								variant="outline"
 								onclick={cancelModification}
-								disabled={isLoading || !$chargingRequest}
+								disabled={isLoading || !chargingRequest.current}
 							>
 								修改请求
 							</Button>

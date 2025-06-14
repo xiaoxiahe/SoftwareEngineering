@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { auth } from '$lib/stores/auth';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
 	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
 	import {
@@ -14,7 +14,7 @@
 	import { Button } from '$lib/components/ui/button';
 
 	// 获取用户名首字母
-	$: userInitials = $auth.user?.username ? $auth.user.username.substring(0, 2).toUpperCase() : 'A';
+	$: userInitials = auth.user?.username ? auth.user.username.substring(0, 2).toUpperCase() : 'A';
 
 	// 注销处理
 	const handleLogout = () => {
@@ -295,7 +295,7 @@
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>管理员</DropdownMenuLabel>
 					<DropdownMenuLabel>
-						{$auth.user?.username}
+						{auth.user?.username}
 					</DropdownMenuLabel>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem onclick={handleLogout}>退出登录</DropdownMenuItem>

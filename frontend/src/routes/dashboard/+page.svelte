@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
-	import { auth } from '$lib/stores/auth';
-	import { chargingRequest, queuePosition } from '$lib/stores/auth';
+	import { auth, chargingRequest, queuePosition } from '$lib/stores/auth.svelte';
 	import { formatDateTime } from '$lib/utils/helpers';
 	import {
 		Card,
@@ -53,7 +52,7 @@
 		}
 	}); // 加载用户请求和队列位置（显示加载状态）
 	async function loadUserStatus(showLoading = true) {
-		if (!$auth.user) return;
+		if (!auth.user) return;
 
 		if (showLoading) {
 			isLoading = true;
@@ -67,31 +66,29 @@
 
 			if (latestRequest) {
 				activeRequest = latestRequest;
-				$chargingRequest = latestRequest;
+				chargingRequest.set(latestRequest);
 
 				// 如果在等待中或排队中，获取队列位置
 				if (latestRequest.status === 'waiting' || latestRequest.status === 'queued') {
-					const position = (await api.queue.getUserPosition(
-						$auth.user.userId
-					)) as UserQueuePosition;
+					const position = (await api.queue.getUserPosition(auth.user.userId)) as UserQueuePosition;
 					userPosition = position;
-					$queuePosition = position;
+					queuePosition.set(position);
 				} else {
 					userPosition = null;
-					$queuePosition = null;
+					queuePosition.clear();
 				}
 			} else {
 				activeRequest = null;
 				userPosition = null;
-				$chargingRequest = null;
-				$queuePosition = null;
+				chargingRequest.clear();
+				queuePosition.clear();
 			}
 		} catch (err) {
 			// 这是正常情况，用户没有活动请求
 			activeRequest = null;
 			userPosition = null;
-			$chargingRequest = null;
-			$queuePosition = null;
+			chargingRequest.clear();
+			queuePosition.clear();
 			error = ''; // 不显示错误信息
 		} finally {
 			if (showLoading) {
@@ -154,13 +151,11 @@
 			// 关闭对话框
 			showCancelDialog = false;
 			// 显示成功提示
-			toast.success('充电请求已成功取消');
-
-			// 立即清空当前状态，提供即时反馈
+			toast.success('充电请求已成功取消'); // 立即清空当前状态，提供即时反馈
 			activeRequest = null;
 			userPosition = null;
-			$chargingRequest = null;
-			$queuePosition = null; // 延迟一小段时间后重新加载最新状态，确保后端已更新
+			chargingRequest.clear();
+			queuePosition.clear(); // 延迟一小段时间后重新加载最新状态，确保后端已更新
 			setTimeout(() => {
 				refreshStatusSilently();
 			}, 500);
@@ -206,7 +201,7 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">👋 欢迎, {$auth.user?.username || '用户'}</h2>
+		<h2 class="text-3xl font-bold tracking-tight">👋 欢迎, {auth.user?.username || '用户'}</h2>
 		<p class="text-muted-foreground">查看您的充电状态和系统信息</p>
 	</div>
 
@@ -364,7 +359,7 @@
 		</div>
 	{/if}
 
-	<div class="grid gap-4 md:grid-cols-1 lg:grid-cols-1 ">
+	<div class="grid gap-4 md:grid-cols-1 lg:grid-cols-1">
 		<Card>
 			<CardHeader>
 				<CardTitle>💰 充电价格</CardTitle>
@@ -374,20 +369,20 @@
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<span>🌞 峰时 (10:00-15:00, 18:00-21:00)</span>
-						<span class="text-xl font-bold text-primary">1.0元/度</span>
+						<span class="text-primary text-xl font-bold">1.0元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
 						<span>🌤️ 平时 (7:00-10:00, 15:00-18:00, 21:00-23:00)</span>
-						<span class="text-xl font-bold text-secondary">0.7元/度</span>
+						<span class="text-secondary text-xl font-bold">0.7元/度</span>
 					</div>
 					<div class="flex items-center justify-between">
 						<span>🌙 谷时 (23:00-次日7:00)</span>
-						<span class="text-xl font-bold text-primary">0.4元/度</span>
+						<span class="text-primary text-xl font-bold">0.4元/度</span>
 					</div>
 					<div class="mt-2 border-t pt-2">
 						<div class="flex items-center justify-between">
 							<span>服务费</span>
-							<span class="text-xl font-bold text-primary">0.8元/度</span>
+							<span class="text-primary text-xl font-bold">0.8元/度</span>
 						</div>
 					</div>
 				</div>

@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
-import { auth } from '$lib/stores/auth';
+import { auth } from '$lib/stores/auth.svelte';
 import { api } from '$lib/api';
 
 // 登录逻辑
