@@ -144,12 +144,8 @@ func (m *Manager) runCLI() {
 			m.triggerFault(args)
 		case "recover":
 			m.recoverFault(args)
-		case "sim":
-			m.simulateRequest(args)
 		case "clock":
 			m.clockCommand(args)
-		case "reload":
-			m.reloadConfig()
 		case "exit", "quit", "stop":
 			m.Stop()
 			return
@@ -167,22 +163,17 @@ func (m *Manager) printHelp() {
 	fmt.Println("====================")
 	fmt.Println("可用命令:")
 	fmt.Println("  status [pileID]         - 查看充电桩状态，不指定ID则显示所有")
-	fmt.Println("  fault <pileID> <type> <minutes> <desc>")
+	fmt.Println("  fault <pileID> <type> <minutes> <description>")
 	fmt.Println("                          - 触发充电桩故障")
 	fmt.Println("                            type: hardware/software/power")
 	fmt.Println("  recover <pileID>        - 手动恢复故障")
-	fmt.Println("  sim <userID> <amount> <mode>")
-	fmt.Println("                          - 模拟充电请求")
-	fmt.Println("                            mode: fast/trickle")
 	fmt.Println("  clock <subcommand>      - 时钟管理命令")
 	fmt.Println("    clock status          - 显示当前时钟状态")
-	fmt.Println("    clock enable <time>   - 启用模拟时钟")
-	fmt.Println("    clock disable         - 禁用模拟时钟")
-	fmt.Println("    clock set <time>      - 设置模拟时间")
-	fmt.Println("  reload                  - 重新加载配置")
+	fmt.Println("    clock set <time>      - 设置模拟时间 (本地时间将转换为UTC)")
 	fmt.Println("  help                    - 显示帮助信息")
 	fmt.Println("  exit                    - 退出程序")
 	fmt.Println("====================")
+	fmt.Println("注意: 时间输入支持本地时间，系统会自动转换为UTC时间存储")
 }
 
 // showStatus 显示充电桩状态
@@ -277,61 +268,6 @@ func (m *Manager) recoverFault(args []string) {
 	fmt.Printf("已恢复充电桩 %s 的故障\n", pileID)
 }
 
-// simulateRequest 模拟充电请求
-func (m *Manager) simulateRequest(args []string) {
-	if len(args) < 4 {
-		fmt.Println("用法: sim <userID> <amount> <mode>")
-		fmt.Println("模式: fast, trickle")
-		return
-	}
-
-	userID := args[1]
-
-	amount, err := strconv.ParseFloat(args[2], 64)
-	if err != nil {
-		fmt.Printf("无效的电量格式: %s\n", args[2])
-		return
-	}
-
-	mode := args[3]
-	if mode != "fast" && mode != "trickle" {
-		fmt.Printf("无效的充电模式: %s, 必须是 'fast' 或 'trickle'\n", mode)
-		return
-	}
-
-	m.simulator.SimulateChargingRequest(userID, amount, mode)
-	fmt.Printf("已模拟用户 %s 的充电请求: %.1f kWh, 模式: %s\n", userID, amount, mode)
-}
-
-// reloadConfig 重新加载配置
-func (m *Manager) reloadConfig() {
-	// 停止当前模拟器
-	if err := m.simulator.Stop(); err != nil {
-		fmt.Printf("停止模拟器失败: %v\n", err)
-		return
-	}
-
-	// 重新加载配置
-	cfg, err := config.LoadConfig(m.configPath)
-	if err != nil {
-		fmt.Printf("加载配置失败: %v\n", err)
-		return
-	}
-
-	// 更新配置
-	m.config = cfg
-	// 创建新的模拟器
-	m.simulator = NewPileSimulator(cfg, m.logger, m.clockManager)
-
-	// 启动新的模拟器
-	if err := m.simulator.Start(); err != nil {
-		fmt.Printf("启动模拟器失败: %v\n", err)
-		return
-	}
-
-	fmt.Println("配置已重新加载，模拟器已重启")
-}
-
 // SetBackendURL 设置后端API URL
 func (m *Manager) SetBackendURL(url string) error {
 	m.config.BackendAPI.BaseURL = url
@@ -389,8 +325,6 @@ func (m *Manager) clockCommand(args []string) {
 		fmt.Println("用法: clock <subcommand>")
 		fmt.Println("子命令:")
 		fmt.Println("  status          - 显示当前时钟状态")
-		fmt.Println("  enable <time>   - 启用模拟时钟")
-		fmt.Println("  disable         - 禁用模拟时钟")
 		fmt.Println("  set <time>      - 设置模拟时间")
 		return
 	}
@@ -399,10 +333,6 @@ func (m *Manager) clockCommand(args []string) {
 	switch subCmd {
 	case "status":
 		m.showClockStatus()
-	case "enable":
-		m.enableClockCommand(args)
-	case "disable":
-		m.disableClockCommand()
 	case "set":
 		m.setTimeCommand(args)
 	default:
@@ -423,65 +353,6 @@ func (m *Manager) showClockStatus() {
 	}
 }
 
-// enableClockCommand 启用模拟时钟命令
-func (m *Manager) enableClockCommand(args []string) {
-	if len(args) < 3 {
-		fmt.Println("用法: clock enable <time>")
-		fmt.Println("时间格式: 2006-01-02T15:04:05Z 或 2006-01-02 15:04:05")
-		return
-	}
-
-	timeStr := args[2]
-	var startTime time.Time
-	var err error
-
-	// 尝试不同的时间格式
-	formats := []string{
-		time.RFC3339,
-		"2006-01-02T15:04:05",
-		"2006-01-02 15:04:05",
-		"15:04:05",
-	}
-
-	for _, format := range formats {
-		if format == "15:04:05" {
-			// 只有时间，使用今天的日期
-			today := time.Now().Format("2006-01-02")
-			timeStr = today + " " + args[2]
-			format = "2006-01-02 15:04:05"
-		}
-
-		startTime, err = time.Parse(format, timeStr)
-		if err == nil {
-			break
-		}
-	}
-
-	if err != nil {
-		fmt.Printf("无效的时间格式: %s\n", args[2])
-		fmt.Println("支持的格式:")
-		fmt.Println("  2024-01-01T08:00:00Z")
-		fmt.Println("  2024-01-01T08:00:00")
-		fmt.Println("  2024-01-01 08:00:00")
-		fmt.Println("  08:00:00 (使用当前日期)")
-		return
-	}
-
-	if err := m.EnableSimulatedClock(startTime); err != nil {
-		fmt.Printf("启用模拟时钟失败: %v\n", err)
-		return
-	}
-
-	fmt.Printf("已启用模拟时钟\n")
-	fmt.Printf("起始时间: %s\n", startTime.Format("2006-01-02 15:04:05"))
-}
-
-// disableClockCommand 禁用模拟时钟命令
-func (m *Manager) disableClockCommand() {
-	m.DisableSimulatedClock()
-	fmt.Println("已禁用模拟时钟，切换为系统时钟")
-}
-
 // setTimeCommand 设置时间命令
 func (m *Manager) setTimeCommand(args []string) {
 	if !m.clockManager.IsUsingSimulatedClock() {
@@ -491,7 +362,7 @@ func (m *Manager) setTimeCommand(args []string) {
 
 	if len(args) < 3 {
 		fmt.Println("用法: clock set <time>")
-		fmt.Println("时间格式: 2006-01-02T15:04:05Z 或 2006-01-02 15:04:05")
+		fmt.Println("时间格式: 2006-01-02T15:04:05Z 或 2006-01-02 15:04:05 (本地时间)")
 		return
 	}
 
@@ -516,7 +387,18 @@ func (m *Manager) setTimeCommand(args []string) {
 			format = "2006-01-02 15:04:05"
 		}
 
-		newTime, err = time.Parse(format, timeStr)
+		if format == time.RFC3339 {
+			// RFC3339 格式已包含时区信息，直接解析
+			newTime, err = time.Parse(format, timeStr)
+		} else {
+			// 其他格式按本地时间解析，然后转换为UTC
+			newTime, err = time.ParseInLocation(format, timeStr, time.Local)
+			if err == nil {
+				// 转换为UTC时间
+				newTime = newTime.UTC()
+			}
+		}
+
 		if err == nil {
 			break
 		}
@@ -524,6 +406,11 @@ func (m *Manager) setTimeCommand(args []string) {
 
 	if err != nil {
 		fmt.Printf("无效的时间格式: %s\n", args[2])
+		fmt.Println("支持的格式:")
+		fmt.Println("  2024-01-01T08:00:00Z (UTC时间)")
+		fmt.Println("  2024-01-01T08:00:00 (本地时间，将转换为UTC)")
+		fmt.Println("  2024-01-01 08:00:00 (本地时间，将转换为UTC)")
+		fmt.Println("  08:00:00 (本地时间，使用当前模拟日期，将转换为UTC)")
 		return
 	}
 
@@ -531,5 +418,6 @@ func (m *Manager) setTimeCommand(args []string) {
 		fmt.Printf("设置时间失败: %v\n", err)
 		return
 	}
-	fmt.Printf("模拟时间已设置为: %s\n", newTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf("模拟时间已设置为: %s (UTC)\n", newTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf("本地时间: %s\n", newTime.In(time.Local).Format("2006-01-02 15:04:05"))
 }

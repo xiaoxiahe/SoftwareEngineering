@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"backend/internal/middleware"
 	"backend/internal/model"
@@ -15,13 +16,15 @@ import (
 type QueueHandler struct {
 	chargingRequestService *service.ChargingRequestService
 	systemService          *service.SystemService
+	userService            *service.UserService
 }
 
 // NewQueueHandler 创建队列处理器
-func NewQueueHandler(chargingRequestService *service.ChargingRequestService, systemService *service.SystemService) *QueueHandler {
+func NewQueueHandler(chargingRequestService *service.ChargingRequestService, systemService *service.SystemService, userService *service.UserService) *QueueHandler {
 	return &QueueHandler{
 		chargingRequestService: chargingRequestService,
 		systemService:          systemService,
+		userService:            userService,
 	}
 }
 
@@ -156,6 +159,96 @@ func (h *QueueHandler) GetUserQueuePosition(w http.ResponseWriter, r *http.Reque
 		Code:      200,
 		Message:   "success",
 		Data:      queueInfo,
+		Timestamp: model.NowTimestamp(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetWaitingVehicles 获取等候区车辆信息
+func (h *QueueHandler) GetWaitingVehicles(w http.ResponseWriter, r *http.Request) {
+	// 获取快充等候区车辆
+	fastRequests, err := h.chargingRequestService.GetWaitingRequestsByMode(model.ChargingModeFast)
+	if err != nil {
+		http.Error(w, "获取快充等候区车辆失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 获取慢充等候区车辆
+	slowRequests, err := h.chargingRequestService.GetWaitingRequestsByMode(model.ChargingModeSlow)
+	if err != nil {
+		http.Error(w, "获取慢充等候区车辆失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// 从服务中获取用户服务
+	userService := h.userService
+
+	// 处理快充车辆信息
+	var fastVehicles []map[string]any
+	for _, req := range fastRequests {
+		// 获取用户信息以获取车牌号
+		user, err := userService.GetUserByID(req.UserID)
+		if err != nil {
+			// 如果获取用户信息失败，跳过该车辆
+			continue
+		}
+
+		vehicleInfo := map[string]any{
+			"licensePlate":      user.LicensePlate,
+			"requestType":       "快充",
+			"requestedCapacity": req.RequestedCapacity,
+			"queueNumber":       req.QueueNumber,
+			"createdAt":         req.CreatedAt,
+		}
+		fastVehicles = append(fastVehicles, vehicleInfo)
+	}
+
+	// 处理慢充车辆信息
+	var slowVehicles []map[string]any
+	for _, req := range slowRequests {
+		// 获取用户信息以获取车牌号
+		user, err := userService.GetUserByID(req.UserID)
+		if err != nil {
+			// 如果获取用户信息失败，跳过该车辆
+			continue
+		}
+
+		vehicleInfo := map[string]any{
+			"licensePlate":      user.LicensePlate,
+			"requestType":       "慢充",
+			"requestedCapacity": req.RequestedCapacity,
+			"queueNumber":       req.QueueNumber,
+			"createdAt":         req.CreatedAt,
+		}
+		slowVehicles = append(slowVehicles, vehicleInfo)
+	}
+
+	// 合并所有车辆并按创建时间排序
+	allVehicles := append(fastVehicles, slowVehicles...)
+
+	// 按创建时间排序 (从早到晚)
+	for i := 0; i < len(allVehicles)-1; i++ {
+		for j := i + 1; j < len(allVehicles); j++ {
+			if allVehicles[i]["createdAt"].(time.Time).After(allVehicles[j]["createdAt"].(time.Time)) {
+				allVehicles[i], allVehicles[j] = allVehicles[j], allVehicles[i]
+			}
+		}
+	}
+
+	// 构建响应数据
+	data := map[string]any{
+		"waitingVehicles": allVehicles,
+		"totalCount":      len(allVehicles),
+		"fastCount":       len(fastVehicles),
+		"slowCount":       len(slowVehicles),
+	}
+
+	response := model.Response{
+		Code:      200,
+		Message:   "success",
+		Data:      data,
 		Timestamp: model.NowTimestamp(),
 	}
 

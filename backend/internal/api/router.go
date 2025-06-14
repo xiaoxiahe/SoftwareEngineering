@@ -20,7 +20,7 @@ func SetupRouter(services *service.Services, cfg *config.Config) http.Handler {
 	userHandler := handlers.NewUserHandler(services.User)
 	chargingRequestHandler := handlers.NewChargingRequestHandler(services.ChargingRequest, services.ChargingSessionRepo)
 	chargingPileHandler := handlers.NewChargingPileHandler(services.ChargingPile)
-	queueHandler := handlers.NewQueueHandler(services.ChargingRequest, services.System)
+	queueHandler := handlers.NewQueueHandler(services.ChargingRequest, services.System, services.User)
 	billingHandler := handlers.NewBillingHandler(services.Billing)
 	systemHandler := handlers.NewSystemHandler(services.System)
 	simulatorHandler := handlers.NewSimulatorHandler(services.ChargingPile, services.Scheduler)
@@ -73,6 +73,9 @@ func SetupRouter(services *service.Services, cfg *config.Config) http.Handler {
 
 	// 查询用户排队位置
 	mux.HandleFunc("GET /api/v1/queue/position/{userId}", auth(queueHandler.GetUserQueuePosition))
+
+	// 查询等候区车辆信息
+	mux.HandleFunc("GET /api/v1/queue/waiting-vehicles", queueHandler.GetWaitingVehicles)
 
 	// === 充电桩接口 ===
 

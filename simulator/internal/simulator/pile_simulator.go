@@ -127,38 +127,6 @@ func (s *PileSimulator) startRandomFaultSimulation() {
 	}()
 }
 
-// SimulateChargingRequest 模拟充电请求
-func (s *PileSimulator) SimulateChargingRequest(userID string, amount float64, mode string) {
-	// 随机选择一个可用的充电桩
-	piles := s.pileService.GetAllPiles()
-	var availablePiles []*models.Pile
-
-	for _, pile := range piles {
-		status, _ := pile.GetStatus()
-		if status == models.PileStatusAvailable {
-			// 检查充电桩类型与请求的充电模式是否匹配
-			if (mode == string(models.ChargingModeFast) && pile.Type == models.PileTypeFast) ||
-				(mode == string(models.ChargingModeTrickle) && pile.Type == models.PileTypeTrickle) {
-				availablePiles = append(availablePiles, pile)
-			}
-		}
-	}
-
-	if len(availablePiles) == 0 {
-		s.logger.Warning("没有可用的充电桩满足请求: 用户=%s, 电量=%.1f, 模式=%s", userID, amount, mode)
-		return
-	}
-
-	// 随机选择一个充电桩
-	selectedIndex := utils.RandomInt(0, len(availablePiles)-1)
-	selectedPile := availablePiles[selectedIndex]
-
-	// 分配车辆到充电桩
-	if err := s.pileService.AssignVehicle(selectedPile.ID, userID, amount, mode); err != nil {
-		s.logger.Error("分配车辆到充电桩失败: %v", err)
-	}
-}
-
 // TriggerFault 手动触发故障
 func (s *PileSimulator) TriggerFault(pileID string, faultType string, description string, durationMinutes int) error {
 	// 转换故障类型
