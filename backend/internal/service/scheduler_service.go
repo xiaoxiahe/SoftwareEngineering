@@ -635,7 +635,6 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 	if err != nil {
 		log.Printf("更新充电桩队列长度失败: %v", err)
 	}
-
 	// 获取该充电桩上正在充电的会话
 	session, err := s.sessionRepo.GetActiveSessionByPileID(pileID)
 	if err != nil {
@@ -643,6 +642,29 @@ func (s *SchedulerService) HandlePileFault(pileID string, faultType string, desc
 			log.Printf("获取充电会话失败: %v", err)
 		}
 	} else if session != nil { // 停止当前充电会话
+		// 获取对应的充电请求
+		chargingRequest, err := s.requestRepo.GetByID(session.RequestID)
+		if err == nil && chargingRequest != nil {
+			// 计算已充电量（从会话开始时间到现在的充电量）
+			chargedCapacity := session.ActualCapacity
+			if chargedCapacity > 0 {
+				// 将请求的充电量减去已充电量
+				remainingCapacity := chargingRequest.RequestedCapacity - chargedCapacity
+				if remainingCapacity < 0 {
+					remainingCapacity = 0
+				}
+				// 更新充电请求的充电量
+				chargingRequest.RequestedCapacity = remainingCapacity
+				err = s.requestRepo.UpdateRequest(chargingRequest)
+				if err != nil {
+					log.Printf("更新充电请求失败: %v", err)
+				} else {
+					log.Printf("充电桩故障，已将请求 %s 的充电量从 %.2f 减少到 %.2f",
+						chargingRequest.ID, chargingRequest.RequestedCapacity+chargedCapacity, remainingCapacity)
+				}
+			}
+		}
+
 		session.Status = model.SessionStatusInterrupted
 
 		// 更新会话

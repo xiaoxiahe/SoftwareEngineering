@@ -61,8 +61,6 @@ func (h *SimulatorHandler) UpdateChargingProgress(w http.ResponseWriter, r *http
 		return
 	}
 
-	fmt.Println("Received ChargingProgressRequest:", req)
-
 	// 验证参数
 	if req.PileID == "" || req.UserID == "" {
 		http.Error(w, "充电桩ID和用户ID不能为空", http.StatusBadRequest)
@@ -102,8 +100,6 @@ func (h *SimulatorHandler) ReportFault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Received FaultReportSimRequest:", req)
-
 	// 验证参数
 	if req.PileID == "" || req.FaultType == "" {
 		http.Error(w, "充电桩ID和故障类型不能为空", http.StatusBadRequest)
@@ -126,6 +122,8 @@ func (h *SimulatorHandler) ReportFault(w http.ResponseWriter, r *http.Request) {
 
 	// 创建一个故障记录ID
 	faultID := "fault-" + time.Now().UTC().Format("20060102150405")
+
+	fmt.Printf("故障报告成功，故障ID: %s\n", faultID)
 
 	response := model.Response{
 		Code:    200,
@@ -155,8 +153,6 @@ func (h *SimulatorHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Received HeartbeatRequest:", req)
-
 	response := model.Response{
 		Code:      200,
 		Message:   "心跳成功",
@@ -180,8 +176,6 @@ func (h *SimulatorHandler) RecoverFault(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "无效的请求参数", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("Received FaultRecoveryRequest:", req)
 
 	// 验证参数
 	if req.PileID == "" {
@@ -229,8 +223,6 @@ func (h *SimulatorHandler) CompleteCharging(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "无效的请求参数", http.StatusBadRequest)
 		return
 	}
-
-	fmt.Println("Received ChargingCompleteRequest:", req)
 
 	// 验证参数
 	if req.PileID == "" || req.UserID == "" {

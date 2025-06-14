@@ -281,7 +281,7 @@ func (r *ChargingRequestRepository) UpdateRequest(request *model.ChargingRequest
 		SET charging_mode = $1, requested_capacity = $2, queue_number = $3, 
 		    pile_id = $4, queue_position = $5, status = $6, estimated_wait_time = $7, 
 		    updated_at = $8
-		WHERE id = $10
+		WHERE id = $9
 	`
 
 	var pileID any = nil
