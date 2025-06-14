@@ -787,7 +787,7 @@ func (s *SchedulerService) calculateGlobalOptimalAssignment(requests []*model.Ch
 			}
 
 			// 计算完成时间
-			waitTime := s.calculateWaitTimeForPile(pile)
+			waitTime := s.calculateWaitTimeForPile(pile, assignment)
 			selfChargingTime := req.RequestedCapacity / pile.Power * 3600
 			completionTime := waitTime + selfChargingTime
 
@@ -807,12 +807,27 @@ func (s *SchedulerService) calculateGlobalOptimalAssignment(requests []*model.Ch
 }
 
 // calculateWaitTimeForPile 计算充电桩的等待时间
-func (s *SchedulerService) calculateWaitTimeForPile(pile *model.ChargingPile) float64 {
+func (s *SchedulerService) calculateWaitTimeForPile(pile *model.ChargingPile, assignment map[uuid.UUID]string) float64 {
+	// 通过 assignment 获取该充电桩队列中的所有请求
+	requests := make([]*model.ChargingRequest, 0)
+	for reqID, pileID := range assignment {
+		if pileID == pile.ID {
+			req, err := s.requestRepo.GetByID(reqID)
+			if err == nil && req != nil {
+				requests = append(requests, req)
+			} else {
+				log.Printf("获取请求 %s 失败: %v", reqID, err)
+			}
+		}
+	}
+
 	// 获取该充电桩队列中的所有请求
-	requests, err := s.requestRepo.GetRequestsByPile(pile.ID)
+	current_requests, err := s.requestRepo.GetRequestsByPile(pile.ID)
 	if err != nil {
 		return 0
 	}
+
+	requests = append(requests, current_requests...)
 
 	var totalWaitTime float64 = 0
 	for _, req := range requests {
