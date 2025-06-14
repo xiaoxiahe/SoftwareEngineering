@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -114,16 +113,16 @@ func (r *SystemRepository) GetSchedulingConfig() (*model.SchedulingConfig, error
 	for _, config := range configs {
 		configMap[config.ConfigKey] = config.ConfigValue
 	}
-
 	// 创建默认配置
 	schedulingConfig := model.SchedulingConfig{
-		Strategy:            "shortest_completion_time",
-		FastChargingPileNum: 2,
-		SlowChargingPileNum: 3,
-		WaitingAreaSize:     6,
-		ChargingQueueLen:    2,
-		FastChargingPower:   30.0,
-		SlowChargingPower:   7.0,
+		Strategy:               "shortest_completion_time",
+		FastChargingPileNum:    2,
+		SlowChargingPileNum:    3,
+		WaitingAreaSize:        6,
+		ChargingQueueLen:       2,
+		FastChargingPower:      30.0,
+		SlowChargingPower:      7.0,
+		ExtendedSchedulingMode: model.ExtendedModeDisabled,
 	}
 
 	// 应用配置，如果存在的话
@@ -160,83 +159,17 @@ func (r *SystemRepository) GetSchedulingConfig() (*model.SchedulingConfig, error
 			schedulingConfig.FastChargingPower = num
 		}
 	}
-
 	if val, ok := configMap["slow_charging_power"]; ok {
 		if num, err := strconv.ParseFloat(val, 64); err == nil {
 			schedulingConfig.SlowChargingPower = num
 		}
 	}
 
+	if val, ok := configMap["extended_scheduling_mode"]; ok {
+		schedulingConfig.ExtendedSchedulingMode = model.ExtendedSchedulingMode(val)
+	}
+
 	return &schedulingConfig, nil
-}
-
-// UpdateSchedulingConfig 更新调度配置
-func (r *SystemRepository) UpdateSchedulingConfig(config *model.SchedulingConfig) error {
-	// 开始事务
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	// 准备更新语句
-	stmt, err := tx.Prepare(`
-		UPDATE system_config
-		SET config_value = $1, updated_at = $2
-		WHERE config_key = $3
-	`)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-
-	now := time.Now().UTC()
-
-	// 更新各项配置
-	_, err = stmt.Exec(config.Strategy, now, "scheduling_strategy")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.Itoa(config.FastChargingPileNum), now, "fast_charging_pile_num")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.Itoa(config.SlowChargingPileNum), now, "slow_charging_pile_num")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.Itoa(config.WaitingAreaSize), now, "waiting_area_size")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.Itoa(config.ChargingQueueLen), now, "charging_queue_len")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.FormatFloat(config.FastChargingPower, 'f', 2, 64), now, "fast_charging_power")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = stmt.Exec(strconv.FormatFloat(config.SlowChargingPower, 'f', 2, 64), now, "slow_charging_power")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 提交事务
-	return tx.Commit()
 }
 
 // CreateFaultRecord 创建故障记录
@@ -400,249 +333,6 @@ func (r *SystemRepository) GetFaultRecords(startTime, endTime time.Time, pileID 
 	}
 
 	return records, total, nil
-}
-
-// GenerateStatisticsReport 生成统计报表
-func (r *SystemRepository) GenerateStatisticsReport(period string, date time.Time) (*model.StatisticsReport, error) {
-	var startDate, endDate time.Time
-	var periodStr string
-
-	// 根据周期确定起止时间
-	switch period {
-	case "day":
-		startDate = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		endDate = time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, date.Location())
-		periodStr = startDate.Format("2006-01-02")
-	case "week":
-		// 找到这周的星期一
-		weekday := date.Weekday()
-		if weekday == 0 { // 周日
-			weekday = 7
-		}
-		startDate = time.Date(date.Year(), date.Month(), date.Day()-int(weekday-1), 0, 0, 0, 0, date.Location())
-		endDate = time.Date(date.Year(), date.Month(), date.Day()+(7-int(weekday)), 23, 59, 59, 999999999, date.Location())
-		yearNum, weekNum := startDate.ISOWeek()
-		periodStr = fmt.Sprintf("%d-W%d", yearNum, weekNum)
-	case "month":
-		startDate = time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
-		endDate = time.Date(date.Year(), date.Month()+1, 0, 23, 59, 59, 999999999, date.Location())
-		periodStr = startDate.Format("2006-01")
-	default:
-		return nil, fmt.Errorf("无效的时间周期: %s", period)
-	}
-
-	// 创建报表对象
-	report := model.StatisticsReport{
-		Period: period,
-		Date:   periodStr,
-	}
-
-	// 获取所有充电桩的统计信息
-	pileQuery := `
-		SELECT cp.id, cp.pile_type,
-			COUNT(DISTINCT cs.id) as total_sessions,
-			COALESCE(SUM(cs.charging_duration), 0) as total_duration,
-			COALESCE(SUM(cs.charged_capacity), 0) as total_energy
-		FROM charging_piles cp
-		LEFT JOIN charging_sessions cs ON cp.id = cs.pile_id
-			AND cs.start_time >= $1 AND (cs.end_time <= $2 OR cs.end_time IS NULL)
-			AND cs.status IN ('completed', 'interrupted')
-		GROUP BY cp.id, cp.pile_type
-		ORDER BY cp.id
-	`
-
-	rows, err := r.db.Query(pileQuery, startDate, endDate)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var pileReport model.PileReport
-		var pileType string
-		err := rows.Scan(
-			&pileReport.PileID,
-			&pileType,
-			&pileReport.TotalSessions,
-			&pileReport.TotalDuration,
-			&pileReport.TotalEnergy,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// 计算充电费用和服务费
-		billingQuery := `
-			SELECT 
-				COALESCE(SUM(charging_fee), 0) as charging_fee,
-				COALESCE(SUM(service_fee), 0) as service_fee,
-				COALESCE(SUM(total_fee), 0) as total_fee
-			FROM billing_details
-			WHERE pile_id = $1 AND start_time >= $2 AND stop_time <= $3
-		`
-
-		err = r.db.QueryRow(billingQuery, pileReport.PileID, startDate, endDate).Scan(
-			&pileReport.ChargingFee,
-			&pileReport.ServiceFee,
-			&pileReport.TotalFee,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	// 获取系统总体统计信息
-	systemQuery := `
-		SELECT 
-			COUNT(*) as total_requests,
-			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_requests,
-			COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_requests
-		FROM charging_requests
-		WHERE created_at >= $1 AND created_at <= $2
-	`
-
-	err = r.db.QueryRow(systemQuery, startDate, endDate).Scan(
-		&report.SystemReport.TotalRequests,
-		&report.SystemReport.CompletedRequests,
-		&report.SystemReport.CancelledRequests,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// 计算平均等待时间（以分钟为单位）
-	waitingTimeQuery := `
-		SELECT 
-			COALESCE(AVG(EXTRACT(EPOCH FROM (cs.start_time - cr.created_at)) / 60), 0) as avg_waiting_time
-		FROM charging_sessions cs
-		JOIN charging_requests cr ON cs.request_id = cr.id
-		WHERE cs.start_time >= $1 AND (cs.end_time <= $2 OR cs.end_time IS NULL)
-	`
-
-	err = r.db.QueryRow(waitingTimeQuery, startDate, endDate).Scan(&report.SystemReport.AvgWaitingTime)
-	if err != nil {
-		return nil, err
-	}
-
-	// 计算总收入
-	revenueQuery := `
-		SELECT COALESCE(SUM(total_fee), 0) as total_revenue
-		FROM billing_details
-		WHERE start_time >= $1 AND stop_time <= $2
-	`
-
-	err = r.db.QueryRow(revenueQuery, startDate, endDate).Scan(&report.SystemReport.TotalRevenue)
-	if err != nil {
-		return nil, err
-	}
-
-	// 首先获取峰时时段
-	peakTimeQuery := `
-		SELECT 
-			EXTRACT(HOUR FROM start_time) as start_hour,
-			EXTRACT(HOUR FROM end_time) as end_hour
-		FROM pricing_config
-		WHERE price_type = 'peak' AND effective_date <= $1
-		ORDER BY effective_date DESC
-		LIMIT 1
-	`
-
-	rows, err = r.db.Query(peakTimeQuery, endDate)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	type peakTime struct {
-		StartHour int
-		EndHour   int
-	}
-
-	var peakTimes []peakTime
-	for rows.Next() {
-		var pt peakTime
-		err := rows.Scan(&pt.StartHour, &pt.EndHour)
-		if err != nil {
-			return nil, err
-		}
-		peakTimes = append(peakTimes, pt)
-	}
-
-	// 计算每天的峰时小时数
-	var dailyPeakHours int
-	for _, pt := range peakTimes {
-		if pt.EndHour > pt.StartHour {
-			dailyPeakHours += pt.EndHour - pt.StartHour
-		} else {
-			dailyPeakHours += pt.EndHour + (24 - pt.StartHour)
-		}
-	}
-
-	// 根据周期计算总峰时时间
-	var totalDays int
-	switch period {
-	case "day":
-		totalDays = 1
-	case "week":
-		totalDays = 7
-	case "month":
-		// 计算月份的总天数
-		totalDays = endDate.Day()
-	}
-
-	totalPeakHours := dailyPeakHours * totalDays
-
-	// 计算峰时充电时长
-	peakUsageQuery := `
-		SELECT COALESCE(SUM(
-			CASE 
-				WHEN EXTRACT(HOUR FROM start_time) BETWEEN $1 AND $2
-					OR EXTRACT(HOUR FROM start_time) BETWEEN $3 AND $4
-				THEN charging_duration
-				ELSE 0
-			END
-		), 0) as peak_usage
-		FROM charging_sessions
-		WHERE start_time >= $5 AND (end_time <= $6 OR end_time IS NULL)
-	`
-
-	var peakUsage float64
-	if len(peakTimes) >= 2 {
-		err = r.db.QueryRow(peakUsageQuery,
-			peakTimes[0].StartHour, peakTimes[0].EndHour,
-			peakTimes[1].StartHour, peakTimes[1].EndHour,
-			startDate, endDate).Scan(&peakUsage)
-	} else if len(peakTimes) == 1 {
-		err = r.db.QueryRow(peakUsageQuery,
-			peakTimes[0].StartHour, peakTimes[0].EndHour,
-			-1, -1, // 无效的时间范围
-			startDate, endDate).Scan(&peakUsage)
-	} else {
-		peakUsage = 0
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	// 峰时使用率 = 峰时使用时间 / (充电桩数量 * 总峰时时间)
-	var totalPiles int
-	err = r.db.QueryRow("SELECT COUNT(*) FROM charging_piles").Scan(&totalPiles)
-	if err != nil {
-		return nil, err
-	}
-
-	if totalPiles > 0 && totalPeakHours > 0 {
-		report.SystemReport.PeakTimeUsage = (peakUsage / float64(totalPiles*totalPeakHours)) * 100
-	} else {
-		report.SystemReport.PeakTimeUsage = 0
-	}
-
-	return &report, nil
 }
 
 // CreateConfig 创建新的系统配置项

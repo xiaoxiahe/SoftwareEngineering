@@ -51,8 +51,7 @@ func (s *BootstrapService) InitializeSystem() error {
 }
 
 // syncSystemConfig 将配置文件中的系统配置同步到数据库
-func (s *BootstrapService) syncSystemConfig() error {
-	// 从配置对象获取系统配置项
+func (s *BootstrapService) syncSystemConfig() error { // 从配置对象获取系统配置项
 	configItems := map[string]string{
 		"fast_charging_pile_num":    fmt.Sprintf("%d", s.config.Charging.FastChargingPileNum),
 		"trickle_charging_pile_num": fmt.Sprintf("%d", s.config.Charging.TrickleChargingPileNum),
@@ -61,6 +60,7 @@ func (s *BootstrapService) syncSystemConfig() error {
 		"fast_charging_power":       fmt.Sprintf("%.2f", s.config.Charging.FastChargingPower),
 		"trickle_charging_power":    fmt.Sprintf("%.2f", s.config.Charging.TrickleChargingPower),
 		"service_fee_per_unit":      fmt.Sprintf("%.2f", s.config.Charging.ServiceFeePerUnit),
+		"extended_scheduling_mode":  s.config.Charging.ExtendedSchedulingMode,
 	}
 
 	// 对每个配置项，检查是否存在，不存在则创建，存在则更新
@@ -70,7 +70,7 @@ func (s *BootstrapService) syncSystemConfig() error {
 			if err == sql.ErrNoRows {
 				// 配置项不存在，创建一个新的
 				configType := "string"
-				if key == "fault_rescheduling_policy" {
+				if key == "extended_scheduling_mode" {
 					configType = "string"
 				} else {
 					configType = "number"
@@ -300,6 +300,7 @@ func getConfigDescription(key string) string {
 		"fast_charging_power":       "快充功率(度/小时)",
 		"trickle_charging_power":    "慢充功率(度/小时)",
 		"service_fee_per_unit":      "服务费率(元/度)",
+		"extended_scheduling_mode":  "扩展调度模式 (disabled: 禁用扩展调度, batch: 批量调度总充电时长最短)",
 	}
 
 	if desc, ok := descriptions[key]; ok {

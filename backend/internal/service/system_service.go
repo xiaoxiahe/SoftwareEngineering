@@ -60,36 +60,6 @@ func (s *SystemService) GetSchedulingConfig() (*model.SchedulingConfig, error) {
 	return s.schedulingConfig, nil
 }
 
-// UpdateSchedulingConfig 更新调度配置
-func (s *SystemService) UpdateSchedulingConfig(config *model.SchedulingConfig) error {
-	// 验证配置参数
-	if config.FastChargingPileNum <= 0 || config.SlowChargingPileNum <= 0 {
-		return errors.New("充电桩数量必须大于0")
-	}
-	if config.WaitingAreaSize <= 0 {
-		return errors.New("等候区大小必须大于0")
-	}
-	if config.ChargingQueueLen <= 0 {
-		return errors.New("充电队列长度必须大于0")
-	}
-	if config.FastChargingPower <= 0 || config.SlowChargingPower <= 0 {
-		return errors.New("充电功率必须大于0")
-	}
-	if config.Strategy != "shortest_completion_time" && config.Strategy != "first_come_first_served" {
-		return errors.New("无效的调度策略")
-	}
-
-	// 更新数据库
-	err := s.systemRepo.UpdateSchedulingConfig(config)
-	if err != nil {
-		return err
-	}
-
-	// 更新内存中的配置
-	s.schedulingConfig = config
-	return nil
-}
-
 // GetSystemConfigs 获取所有系统配置
 func (s *SystemService) GetSystemConfigs() ([]*model.SystemConfig, error) {
 	return s.systemRepo.GetAllConfigs()
