@@ -6,6 +6,7 @@
       "dependencies": {
         "@internationalized/date": "^3.8.1",
         "lucide-svelte": "^0.511.0",
+        "tailwindcss-animate": "^1.0.7",
       },
       "devDependencies": {
         "@eslint/compat": "^1.2.9",
@@ -873,6 +874,8 @@
     "tailwind-variants": ["tailwind-variants@0.2.1", "https://registry.npmmirror.com/tailwind-variants/-/tailwind-variants-0.2.1.tgz", { "dependencies": { "tailwind-merge": "^2.2.0" }, "peerDependencies": { "tailwindcss": "*" } }, "sha512-2xmhAf4UIc3PijOUcJPA1LP4AbxhpcHuHM2C26xM0k81r0maAO6uoUSHl3APmvHZcY5cZCY/bYuJdfFa4eGoaw=="],
 
     "tailwindcss": ["tailwindcss@4.1.7", "https://registry.npmmirror.com/tailwindcss/-/tailwindcss-4.1.7.tgz", {}, "sha512-kr1o/ErIdNhTz8uzAYL7TpaUuzKIE6QPQ4qmSdxnoX/lo+5wmUHQA6h3L5yIqEImSRnAAURDirLu/BgiXGPAhg=="],
+
+    "tailwindcss-animate": ["tailwindcss-animate@1.0.7", "https://registry.npmmirror.com/tailwindcss-animate/-/tailwindcss-animate-1.0.7.tgz", { "peerDependencies": { "tailwindcss": ">=3.0.0 || insiders" } }, "sha512-bl6mpH3T7I3UFxuvDEXLxy/VuFxBk5bbzplh7tXI68mwMokNYd1t9qPBHlnyTwfa4JGC4zP516I1hYYtQ/vspA=="],
 
     "tapable": ["tapable@2.2.2", "https://registry.npmmirror.com/tapable/-/tapable-2.2.2.tgz", {}, "sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg=="],
 

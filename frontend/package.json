@@ -59,6 +59,7 @@
 	},
 	"dependencies": {
 		"@internationalized/date": "^3.8.1",
-		"lucide-svelte": "^0.511.0"
+		"lucide-svelte": "^0.511.0",
+		"tailwindcss-animate": "^1.0.7"
 	}
 }
