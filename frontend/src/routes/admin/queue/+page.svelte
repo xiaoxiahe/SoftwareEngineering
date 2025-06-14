@@ -103,7 +103,7 @@
 			</Card.Root>
 		{:else}
 			<!-- 充电桩队列信息 -->
-			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-1">
 				{#each pileQueueData?.piles as pile (pile.pileId)}
 					<Card.Root>
 						<Card.Header>
@@ -151,6 +151,8 @@
 													<Table.Head>用户ID</Table.Head>
 													<Table.Head>电池容量</Table.Head>
 													<Table.Head>请求充电量</Table.Head>
+													<Table.Head>当前充电量</Table.Head>
+													<Table.Head>当前费用</Table.Head>
 													<Table.Head>等待时间</Table.Head>
 												</Table.Row>
 											</Table.Header>
@@ -174,6 +176,35 @@
 																		(vehicle.requestedCapacity / vehicle.batteryCapacity) * 100
 																	)}%)
 																</div>
+															</div>
+														</Table.Cell>
+														<Table.Cell>
+															<div class="space-y-1">
+																<div class="font-medium">
+																	{vehicle.currentChargedCapacity} kWh
+																</div>
+																{#if vehicle.currentChargedCapacity > 0}
+																	<div class="text-muted-foreground text-xs">
+																		({Math.round(
+																			(vehicle.currentChargedCapacity / vehicle.batteryCapacity) *
+																				100
+																		)}%)
+																	</div>
+																{:else}
+																	<div class="text-muted-foreground text-xs">未开始</div>
+																{/if}
+															</div>
+														</Table.Cell>
+														<Table.Cell>
+															<div class="space-y-1">
+																<div class="font-medium">
+																	¥{vehicle.currentFee.toFixed(2)}
+																</div>
+																{#if vehicle.currentFee > 0}
+																	<div class="text-muted-foreground text-xs">已产生费用</div>
+																{:else}
+																	<div class="text-muted-foreground text-xs">无费用</div>
+																{/if}
 															</div>
 														</Table.Cell>
 														<Table.Cell>

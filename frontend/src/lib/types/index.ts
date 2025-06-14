@@ -161,6 +161,8 @@ export interface QueueVehicleInfo {
   userId: string;
   batteryCapacity: number;
   requestedCapacity: number;
+  currentChargedCapacity: number; // 当前充电量
+  currentFee: number; // 当前费用
   queueTime: number;
   queuePosition: number;
   queueNumber: string;
