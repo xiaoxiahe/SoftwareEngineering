@@ -1052,7 +1052,7 @@ func (s *SchedulerService) executeSingleOptimalScheduling(shouldScheduleFast, sh
 			return fmt.Errorf("获取快充请求失败: %w", err)
 		}
 		// 检查快充请求数量是否足够
-		if len(fastRequests) < 2 {
+		if len(fastRequests) == 0 {
 			log.Printf("快充请求数量不足: 需要2个，实际%d个", len(fastRequests))
 			shouldScheduleFast = false
 		}
@@ -1064,7 +1064,7 @@ func (s *SchedulerService) executeSingleOptimalScheduling(shouldScheduleFast, sh
 			return fmt.Errorf("获取慢充请求失败: %w", err)
 		}
 		// 检查慢充请求数量是否足够
-		if len(slowRequests) < 3 {
+		if len(slowRequests) == 0 {
 			log.Printf("慢充请求数量不足: 需要3个，实际%d个", len(slowRequests))
 			shouldScheduleSlow = false
 		}
@@ -1078,7 +1078,10 @@ func (s *SchedulerService) executeSingleOptimalScheduling(shouldScheduleFast, sh
 	// 执行快充调度
 	if shouldScheduleFast {
 		s.sortRequests(fastRequests)
-		err = s.executeSingleOptimalForMode(fastRequests[:2], model.PileTypeFast, config)
+		if len(fastRequests) > 2 {
+			fastRequests = fastRequests[:2] // 只取前2个请求
+		}
+		err = s.executeSingleOptimalForMode(fastRequests, model.PileTypeFast, config)
 		if err != nil {
 			log.Printf("快充单次调度失败: %v", err)
 		}
@@ -1087,7 +1090,10 @@ func (s *SchedulerService) executeSingleOptimalScheduling(shouldScheduleFast, sh
 	// 执行慢充调度
 	if shouldScheduleSlow {
 		s.sortRequests(slowRequests)
-		err = s.executeSingleOptimalForMode(slowRequests[:3], model.PileTypeSlow, config)
+		if len(slowRequests) > 3 {
+			slowRequests = slowRequests[:3] // 只取前3个请求
+		}
+		err = s.executeSingleOptimalForMode(slowRequests, model.PileTypeSlow, config)
 		if err != nil {
 			log.Printf("慢充单次调度失败: %v", err)
 		}
@@ -1104,10 +1110,12 @@ func (s *SchedulerService) executeSingleOptimalForMode(requests []*model.Chargin
 		return fmt.Errorf("获取可用充电桩失败: %w", err)
 	}
 
-	// 按充电量从大到小排序请求
-	sort.Slice(requests, func(i, j int) bool {
-		return requests[i].RequestedCapacity > requests[j].RequestedCapacity
-	})
+	if len(requests) > 1 {
+		// 按充电量从大到小排序请求
+		sort.Slice(requests, func(i, j int) bool {
+			return requests[i].RequestedCapacity < requests[j].RequestedCapacity
+		})
+	}
 
 	// 计算最优分配方案，考虑充电模式限制
 	assignment := s.calculateOptimalAssignmentWithModeConstraint(requests, availablePiles, config.ChargingQueueLen)
