@@ -49,11 +49,11 @@
 			if (chargingRequest.current) {
 				// 如果有存储的请求，使用它
 				isModifying = chargingRequest.current.status === 'waiting';
-				if (isModifying) {
-					// 预填表单
-					chargingMode = chargingRequest.current.queueNumber.startsWith('F') ? 'fast' : 'slow';
-					requestedCapacity = chargingRequest.current.requestedCapacity || 20;
-				}
+				// if (isModifying) {
+				// 	// 预填表单
+				// 	chargingMode = chargingRequest.current.queueNumber.startsWith('F') ? 'fast' : 'slow';
+				// 	requestedCapacity = chargingRequest.current.requestedCapacity || 20;
+				// }
 			} else {
 				// 如果没有存储的请求，尝试从API获取
 				try {
