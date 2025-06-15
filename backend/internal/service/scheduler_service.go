@@ -756,14 +756,25 @@ func (s *SchedulerService) ExecuteBatchScheduling() error {
 	// 计算最优分配方案（忽略充电模式限制）
 	assignment := s.calculateGlobalOptimalAssignment(selectedRequests, availablePiles, config.ChargingQueueLen)
 
+	sort.Slice(allRequests, func(i, j int) bool {
+		return allRequests[i].RequestedCapacity < allRequests[j].RequestedCapacity
+	})
+
 	// 执行分配
-	for requestID, pileID := range assignment {
-		pile, err := s.pileRepo.GetByID(pileID)
-		if err != nil {
-			log.Printf("获取充电桩失败: %v", err)
+	for _, req := range allRequests {
+		if _, exists := assignment[req.ID]; !exists {
+			log.Printf("请求 %s 没有找到合适的充电桩分配", req.ID)
 			continue
 		}
-		s.scheduleRequestToPile(requestID, pileID, pile.QueueLength+1)
+
+		pileID := assignment[req.ID]
+		pile, err := s.pileRepo.GetByID(pileID)
+		if err != nil {
+			log.Printf("获取充电桩 %s 失败: %v", pileID, err)
+			continue
+		}
+		queuePosition := pile.QueueLength + 1 // 新请求排在队列末尾
+		s.scheduleRequestToPile(req.ID, pileID, queuePosition)
 	}
 
 	return nil
