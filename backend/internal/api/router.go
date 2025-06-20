@@ -99,7 +99,7 @@ func SetupRouter(services *service.Services, cfg *config.Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/admin/charging-piles/{pileId}/control", auth(admin(chargingPileHandler.ControlPile)))
 
 	// 获取充电桩等候车辆信息
-	mux.HandleFunc("GET /api/v1/admin/charging-piles/queue-vehicles", auth(admin(chargingPileHandler.GetQueueVehicles)))
+	mux.HandleFunc("GET /api/v1/admin/charging-piles/queue-vehicles", chargingPileHandler.GetQueueVehicles)
 
 	// 充电桩使用报表
 	mux.HandleFunc("GET /api/v1/admin/reports/charging-piles", auth(admin(systemHandler.GetPileUsageReport)))

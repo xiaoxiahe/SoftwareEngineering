@@ -1,0 +1,29 @@
+{
+  "piles": {
+    "fast": {
+      "count": 2,
+      "power": 30.0
+    },
+    "trickle": {
+      "count": 3,
+      "power": 7.0
+    }
+  },
+  "fault": {
+    "randomFault": false,
+    "faultChance": 0.01,
+    "maxFaultTime": 30,
+    "minFaultTime": 5
+  },
+  "backendAPI": {
+    "baseURL": "http://localhost:8080",
+    "statusInterval": 30,
+    "progressInterval": 10,
+    "heartbeatInterval": 60
+  },
+  "simulation": {
+    "logLevel": "error",
+    "useSimClock": true,
+    "simClockStart": "2024-01-01T00:00:00Z"
+  }
+}
