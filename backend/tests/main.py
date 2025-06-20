@@ -157,6 +157,72 @@ class TestClient:
             print(f"✗ 用户 {username} 充电请求创建异常: {e}")
             return False
 
+    def cancel_charging_request(self, username: str, request_id: str) -> bool:
+        """取消充电请求"""
+        token = self.login_user(username)
+        if not token:
+            return False
+
+        url = f"{self.base_url}/api/v1/charging/requests/{request_id}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = self.session.delete(url, headers=headers)
+            if response.status_code in [200, 204]:
+                return True
+            print(f"✗ 用户 {username} 取消充电请求失败: HTTP {response.status_code}")
+            if response.text:
+                print(f"  响应: {response.text}")
+            return False
+        except Exception as e:
+            print(f"✗ 用户 {username} 取消充电请求异常: {e}")
+            return False
+
+    def get_latest_charging_request(self, username: str) -> Optional[dict]:
+        """获取用户最新的充电请求"""
+        token = self.login_user(username)
+        if not token:
+            return None
+
+        url = f"{self.base_url}/api/v1/charging/requests/latest"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = self.session.get(url, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("data"):
+                    return data["data"]
+                return None
+            print(
+                f"✗ 用户 {username} 获取最新充电请求失败: HTTP {response.status_code}"
+            )
+            return None
+        except Exception as e:
+            print(f"✗ 用户 {username} 获取最新充电请求异常: {e}")
+            return None
+
+    def cancel_latest_charging_request(self, username: str) -> bool:
+        """取消用户最新的充电请求"""
+        # 首先获取最新的充电请求
+        latest_request = self.get_latest_charging_request(username)
+        if not latest_request:
+            print(f"✗ 用户 {username} 没有找到活跃的充电请求")
+            return False
+        request_id = latest_request.get("requestId")
+        if not request_id:
+            print(f"✗ 用户 {username} 获取请求ID失败")
+            return False
+
+        # 取消请求
+        return self.cancel_charging_request(username, request_id)
+
     def set_pile_fault(self, pile_id: str) -> bool:
         """设置充电桩故障"""
         command = f"fault {pile_id} power desc"
@@ -217,7 +283,7 @@ class TestClient:
         try:
             response = self.session.get(url)
             if response.status_code == 200:
-                data = response.json()
+                data = response.json().get("data")
                 print("=== 等候区车辆信息 ===")
 
                 # 检查是否有等候区车辆信息
@@ -228,7 +294,7 @@ class TestClient:
                     for vehicle in waiting_vehicles:
                         license_plate = vehicle.get("licensePlate", "Unknown")
                         request_type = vehicle.get("requestType", "Unknown")
-                        requested_capacity = vehicle.get("requestedCapacity", 0)
+                        requested_capacity = vehicle.get("requestedCapacity", 0.0)
                         print(f"({license_plate},{request_type},{requested_capacity})")
 
                 return data
@@ -313,17 +379,27 @@ def execute_test_case(test_case_file: str):
                         cmd_type, param1, param2, param3 = parse_command(command)
 
                         if cmd_type == "A":
-                            # 充电请求命令: (A,V1,T,7)
                             username = param1
-                            charging_mode = "slow" if param2 == "T" else "fast"
-                            requested_capacity = float(param3)
+                            mode_or_operation = param2
+                            capacity_or_cancel = param3
 
-                            print(
-                                f"执行充电请求: 用户={username}, 模式={charging_mode}, 容量={requested_capacity}"
-                            )
-                            client.create_charging_request(
-                                username, charging_mode, requested_capacity
-                            )
+                            # 检查是否为取消请求命令: (A,V2,O,0)
+                            if mode_or_operation == "O" and capacity_or_cancel == "0":
+                                print(f"执行取消充电请求: 用户={username}")
+                                client.cancel_latest_charging_request(username)
+                            else:
+                                # 充电请求命令: (A,V1,T,7)
+                                charging_mode = (
+                                    "slow" if mode_or_operation == "T" else "fast"
+                                )
+                                requested_capacity = float(capacity_or_cancel)
+
+                                print(
+                                    f"执行充电请求: 用户={username}, 模式={charging_mode}, 容量={requested_capacity}"
+                                )
+                                client.create_charging_request(
+                                    username, charging_mode, requested_capacity
+                                )
 
                         elif cmd_type == "B":
                             # 充电桩控制命令: (B,T2,O,0) 或 (B,T2,O,1)
