@@ -3,7 +3,6 @@
 根据测试用例文件自动执行测试流程
 """
 
-import json
 import subprocess
 import sys
 import time
@@ -88,14 +87,12 @@ class TestClient:
             return False
 
         try:
-            print(f"发送模拟器命令: {command}")
             self.simulator_process.stdin.write(command + "\n")
             self.simulator_process.stdin.flush()
 
             # 等待一下让命令处理完成
             time.sleep(1)
 
-            print(f"✓ 模拟器命令发送成功: {command}")
             return True
 
         except Exception as e:
@@ -108,7 +105,7 @@ class TestClient:
 
     def set_clock(self, time_str: str) -> bool:
         """设置模拟器时钟"""
-        command = f"set clock {time_str}"
+        command = f"clock set {time_str}"
         return self.run_simulator_command(command)
 
     def login_user(self, username: str, password: str = "3") -> Optional[str]:
@@ -126,13 +123,10 @@ class TestClient:
                 token = result.get("data").get("token")
                 if token:
                     self.tokens[username] = token
-                    print(f"✓ 用户 {username} 登录成功")
                     return token
                 print(f"✗ 用户 {username} 登录失败: 未获取到token")
                 return None
             print(f"✗ 用户 {username} 登录失败: HTTP {response.status_code}")
-            if response.text:
-                print(f"  响应: {response.text}")
             return None
         except Exception as e:
             print(f"✗ 用户 {username} 登录异常: {e}")
@@ -156,13 +150,8 @@ class TestClient:
         try:
             response = self.session.post(url, json=data, headers=headers)
             if response.status_code in [200, 201]:
-                print(
-                    f"✓ 用户 {username} 充电请求创建成功 (模式: {charging_mode}, 容量: {requested_capacity})"
-                )
                 return True
             print(f"✗ 用户 {username} 充电请求创建失败: HTTP {response.status_code}")
-            if response.text:
-                print(f"  响应: {response.text}")
             return False
         except Exception as e:
             print(f"✗ 用户 {username} 充电请求创建异常: {e}")
@@ -187,7 +176,7 @@ class TestClient:
             if response.status_code == 200:
                 data = response.json()
                 print("=== 排队状态 ===")
-                print(json.dumps(data, indent=2, ensure_ascii=False))
+                self._print_queue_status_formatted(data)
                 return data
             print(f"✗ 获取排队状态失败: HTTP {response.status_code}")
             if response.text:
@@ -196,7 +185,30 @@ class TestClient:
         except Exception as e:
             print(f"✗ 获取排队状态异常: {e}")
             return {}
-            return {}
+
+    def _print_queue_status_formatted(self, data: dict):
+        """格式化打印排队状态"""
+        if not data or "data" not in data or "piles" not in data["data"]:
+            print("无排队数据")
+            return
+
+        piles = data["data"]["piles"]
+        for pile in piles:
+            pile_id = pile.get("pileId", "Unknown")
+            queue_vehicles = pile.get("queueVehicles", [])
+
+            print(f"{pile_id}：")
+
+            if not queue_vehicles:
+                print("(无排队车辆)")
+            else:
+                for vehicle in queue_vehicles:
+                    vehicle_id = vehicle.get("vehicleId", "Unknown")
+                    current_charged = vehicle.get("currentChargedCapacity", 0)
+                    current_fee = vehicle.get("currentFee", 0)
+                    print(f"({vehicle_id},{current_charged},{current_fee})")
+
+            print()  # 空行分隔不同充电桩
 
     def get_waiting_vehicles(self) -> dict:
         """获取等候区车辆信息"""
@@ -207,11 +219,20 @@ class TestClient:
             if response.status_code == 200:
                 data = response.json()
                 print("=== 等候区车辆信息 ===")
-                print(json.dumps(data, indent=2, ensure_ascii=False))
+
+                # 检查是否有等候区车辆信息
+                waiting_vehicles = data.get("waitingVehicles", [])
+                if not waiting_vehicles:
+                    print("(无等候车辆)")
+                else:
+                    for vehicle in waiting_vehicles:
+                        license_plate = vehicle.get("licensePlate", "Unknown")
+                        request_type = vehicle.get("requestType", "Unknown")
+                        requested_capacity = vehicle.get("requestedCapacity", 0)
+                        print(f"({license_plate},{request_type},{requested_capacity})")
+
                 return data
             print(f"✗ 获取等候区车辆信息失败: HTTP {response.status_code}")
-            if response.text:
-                print(f"  响应: {response.text}")
             return {}
         except Exception as e:
             print(f"✗ 获取等候区车辆信息异常: {e}")
@@ -284,6 +305,8 @@ def execute_test_case(test_case_file: str):
                 if not client.set_clock(time_str):
                     print("✗ 设置时钟失败，继续执行...")
 
+                time.sleep(12)  # 等待时钟设置生效
+
                 # 执行命令
                 for command in commands:
                     try:
@@ -323,10 +346,9 @@ def execute_test_case(test_case_file: str):
                         print(f"✗ 命令执行异常: {command}, 错误: {e}")
 
                 # 等待一下，让系统处理完成
-                time.sleep(0.5)
+                time.sleep(5)
 
                 # 获取并打印状态信息
-                print("\n--- 获取系统状态 ---")
                 client.get_queue_status()
                 client.get_waiting_vehicles()
 

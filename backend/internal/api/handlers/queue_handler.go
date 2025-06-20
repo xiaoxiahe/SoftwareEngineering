@@ -197,7 +197,7 @@ func (h *QueueHandler) GetWaitingVehicles(w http.ResponseWriter, r *http.Request
 
 		vehicleInfo := map[string]any{
 			"licensePlate":      user.LicensePlate,
-			"requestType":       "快充",
+			"requestType":       "F",
 			"requestedCapacity": req.RequestedCapacity,
 			"queueNumber":       req.QueueNumber,
 			"createdAt":         req.CreatedAt,
@@ -217,7 +217,7 @@ func (h *QueueHandler) GetWaitingVehicles(w http.ResponseWriter, r *http.Request
 
 		vehicleInfo := map[string]any{
 			"licensePlate":      user.LicensePlate,
-			"requestType":       "慢充",
+			"requestType":       "T",
 			"requestedCapacity": req.RequestedCapacity,
 			"queueNumber":       req.QueueNumber,
 			"createdAt":         req.CreatedAt,

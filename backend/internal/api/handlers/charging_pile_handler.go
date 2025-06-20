@@ -227,6 +227,7 @@ func (h *ChargingPileHandler) GetQueueVehicles(w http.ResponseWriter, r *http.Re
 			vehicleInfo := map[string]any{
 				"userId":                 item.UserID.String(),
 				"batteryCapacity":        user.BatteryCapacity,
+				"vehicleId":              user.LicensePlate,
 				"requestedCapacity":      item.RequestedCapacity,
 				"currentChargedCapacity": currentChargedCapacity, // 新增：当前充电量
 				"currentFee":             currentFee,             // 新增：当前费用
